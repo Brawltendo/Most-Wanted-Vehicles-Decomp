@@ -1,0 +1,43 @@
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Assembly files
+*.asm
+
+# Excluded directories/files
+.vscode
+speed/shader
+speed/indep/src/sound
+speed/indep/src/matching_test.cpp
+speed/indep/src/compile_and_gen_asm.bat
+speed/indep/src/devenv_setup.bat
