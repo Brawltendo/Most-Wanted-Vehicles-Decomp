@@ -347,6 +347,16 @@ struct Vector4
         return v;
     }
 
+	inline Vector4 operator=(const Vector3& b)
+    {
+		Vector4 v;
+		v.x = b.x;
+		v.y = b.y;
+		v.z = b.z;
+		v.w = w;
+		return v;
+    }
+
 };
 
 }

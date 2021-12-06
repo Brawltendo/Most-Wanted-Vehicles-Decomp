@@ -1,5 +1,6 @@
 #include <math.h>
 
+#define PI 3.14159265f
 #define TWO_PI 6.2831855f
 #define FLT_EPSILON 0.000001f
 
@@ -20,7 +21,7 @@ namespace UMath
 {
 
 // MATCHING
-float InverseLerp(const float val, const float low_end, const float high_end)
+/* float InverseLerp(const float val, const float low_end, const float high_end)
 {
 	float range = high_end - low_end;
 	if ((range > FLT_EPSILON))
@@ -34,6 +35,6 @@ float InverseLerp(const float val, const float low_end, const float high_end)
 		else return 1.f;
 	}
 	else return 0.f;
-}
+} */
 
 } // namespace UMath

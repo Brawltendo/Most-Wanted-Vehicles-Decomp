@@ -10,7 +10,7 @@ struct induction
     struct LayoutStruct
     {
 		// The minimum amount of boost to apply
-        float LOW_BOOST;
+		float LOW_BOOST;
 		// The amount of time taken, in seconds, for the turbocharger to fully spool down
 		float SPOOL_TIME_DOWN;
 		// Negative boost applied before the turbocharger can spool up

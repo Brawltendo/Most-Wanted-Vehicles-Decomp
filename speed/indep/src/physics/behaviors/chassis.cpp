@@ -1,6 +1,10 @@
 #include "physics/behaviors/chassis.h"
 #include "math/mathcommon.h"
 
+extern void ScaleVector(UMath::Vector3* in, const float scale, UMath::Vector3& dest);
+extern float _cdecl VU0_Atan2(float opposite, float adjacent);
+extern UMath::Vector3* _cdecl VU0_MATRIX3x4_vect3mult(const UMath::Vector3& v, const UMath::Matrix4& m, UMath::Vector3& dest);
+
 /* SuspensionRacer::SuspensionRacer()
 {
     mRB = NULL;
@@ -22,6 +26,63 @@
     mTires[2] = NULL;
     mTires[3] = NULL;
 } */
+
+void SuspensionRacer::ComputeAckerman(const float steering, const Chassis::State& state, UMath::Vector4& left, UMath::Vector4& right)
+{
+	float steering_angle_radians = steering * TWO_PI;
+	int going_right = true;
+	const volatile float wheel_base = mChassisInfo.data->WHEEL_BASE;
+	const volatile float track_width_front = mChassisInfo.data->TRACK_WIDTH[0];
+
+	if (steering_angle_radians > PI)
+		steering_angle_radians -= TWO_PI;
+
+	if (steering_angle_radians < 0.f)
+	{
+		going_right = false;
+		steering_angle_radians = -steering_angle_radians;
+	}
+
+	float steer_left = (steering_angle_radians * wheel_base)
+					 / (steering_angle_radians * track_width_front + wheel_base);
+	float steer_right = steering_angle_radians;
+	// Ackermann steering geometry causes the outside wheel to have a smaller turning angle
+	// this is determined by the distance of the wheel to the center of the rear axle
+	if (going_right)
+	{
+		steer_right = -steer_left;
+		steer_left = -steering_angle_radians;
+		/* steer_left = wheel_base * steering_angle_radians
+					 / (steering_angle_radians * track_width_front + wheel_base); */
+	}
+	/* else
+	{
+		steer_left = -steer_left;
+		steer_right = -(wheel_base * steering_angle_radians
+					 / (steering_angle_radians * track_width_front + wheel_base));
+	} */
+
+	// calculate forward vector for front wheels
+	UMath::Vector3 steer_vec;
+	steer_vec.y = 0.f;
+	steer_vec.z = cosf(steer_right);
+	steer_vec.x = sinf(steer_right);
+	VU0_MATRIX3x4_vect3mult(steer_vec, state.matrix, steer_vec);
+	//right.x = steer_vec.x;
+	//right.y = steer_vec.y;
+	//right.z = steer_vec.z;
+	right = steer_vec;
+	right.w = steer_right;
+
+	steer_vec.y = 0.f;
+	steer_vec.z = cosf(steer_left);
+	steer_vec.x = sinf(steer_left);
+	VU0_MATRIX3x4_vect3mult(steer_vec, state.matrix, steer_vec);
+	left.x = steer_vec.x;
+	left.y = steer_vec.y;
+	left.z = steer_vec.z;
+	left.w = steer_left;
+}
 
 // NOT MATCHING
 // there are very slight differences in the instruction order detailed below
@@ -76,10 +137,6 @@
 		mBurnOutAllow = 0.f;
 	}
 } */
-
-extern void ScaleVector(UMath::Vector3* in, const float scale, UMath::Vector3& dest);
-extern float _cdecl VU0_Atan2(float opposite, float adjacent);
-extern float _cdecl fsqrt(float x);
 
 // NOT MATCHING
 // see comments below for explanation
@@ -276,8 +333,7 @@ static float StaticToDynamicBrakeForceRatio = 1.2f;
 
 static float RollingFriction = 2.f;
 static float WheelMomentOfInertia = 10.f;
-#pragma intrinsic(sqrt)
-float SuspensionRacer::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float body_speed, float load, float dT)
+/* float SuspensionRacer::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float body_speed, float load, float dT)
 {
 	float bt = (mBrakes->data->BRAKES[mAxleIndex] * 1.3558f) * BrakingTorque;
 	float ebt = (mBrakes->data->EBRAKE * 1.3558f) * EBrakingTorque;
@@ -448,4 +504,5 @@ float SuspensionRacer::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float bo
 	mAV += dT * mAngularAcc;
 	CheckSign();
 	return mLateralForce;
-}
+} */
+

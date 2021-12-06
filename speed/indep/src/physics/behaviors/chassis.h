@@ -82,6 +82,7 @@ class SuspensionRacer : ISuspension
 public:
     SuspensionRacer();
     void OnTaskSimulate(float dT);
+	void ComputeAckerman(const float steering, const Chassis::State& state, UMath::Vector4& left, UMath::Vector4& right);
 	void DoDrifting(const Chassis::State& state);
 
 	int pad[0x6C / 0x4];
