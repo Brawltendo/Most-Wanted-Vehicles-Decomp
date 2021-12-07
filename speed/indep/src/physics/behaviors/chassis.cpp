@@ -30,8 +30,8 @@ extern UMath::Vector3* _cdecl VU0_MATRIX3x4_vect3mult(const UMath::Vector3& v, c
 void SuspensionRacer::ComputeAckerman(const float steering, const Chassis::State& state, UMath::Vector4& left, UMath::Vector4& right)
 {
 	float steering_angle_radians = steering * TWO_PI;
-	int going_right = true;
 	const volatile float wheel_base = mChassisInfo.data->WHEEL_BASE;
+	int going_right = true;
 	const volatile float track_width_front = mChassisInfo.data->TRACK_WIDTH[0];
 
 	if (steering_angle_radians > PI)
