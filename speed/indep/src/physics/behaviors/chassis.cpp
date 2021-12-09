@@ -43,7 +43,7 @@ void SuspensionRacer::ComputeAckerman(const float steering, const Chassis::State
 		steering_angle_radians = -steering_angle_radians;
 	}
 
-	// Ackermann steering geometry causes the outside wheel to have a smaller turning angle
+	// Ackermann steering geometry causes the outside wheel to have a smaller turning angle than the inside wheel
 	// this is determined by the distance of the wheel to the center of the rear axle
 	// this equation is a modified version of 1/tan(L/(R+(T/2))), where L is the wheelbase, R is the steering radius, and T is the track width
 	// the track width param is already divided by 2 to represent the distance a wheel should be from the middle of an axle
@@ -68,20 +68,13 @@ void SuspensionRacer::ComputeAckerman(const float steering, const Chassis::State
 	steer_vec.z = cosf(steer_right);
 	steer_vec.x = sinf(steer_right);
 	VU0_MATRIX3x4_vect3mult(steer_vec, state.matrix, steer_vec);
-	right.x = steer_vec.x;
-	right.y = steer_vec.y;
-	right.z = steer_vec.z;
-	//right = steer_vec;
-	right.w = steer_right;
+	right = UMath::Vector4(steer_vec, steer_right);
 
 	steer_vec.y = 0.f;
 	steer_vec.z = cosf(steer_left);
 	steer_vec.x = sinf(steer_left);
 	VU0_MATRIX3x4_vect3mult(steer_vec, state.matrix, steer_vec);
-	left.x = steer_vec.x;
-	left.y = steer_vec.y;
-	left.z = steer_vec.z;
-	left.w = steer_left;
+	left = UMath::Vector4(steer_vec, steer_left);
 }
 
 // NOT MATCHING

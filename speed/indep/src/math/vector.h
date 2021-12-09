@@ -257,6 +257,15 @@ struct Vector4
         w = inW;
     }
 
+	Vector4(const Vector3& v, const float inW)
+    {
+        x = v.x;
+        y = v.y;
+        z = v.z;
+        w = inW;
+    }
+
+
     Vector4 operator+(const Vector4& b)
     {
         Vector4 v;
@@ -347,15 +356,13 @@ struct Vector4
         return v;
     }
 
-	inline Vector4 operator=(const Vector3& b)
-    {
-		Vector4 v;
-		v.x = b.x;
-		v.y = b.y;
-		v.z = b.z;
-		v.w = w;
-		return v;
-    }
+	Vector4& operator=(const Vector3 &b) 
+	{
+	    x = b.x;
+		y = b.y;
+		z = b.z;
+	    return *this;
+	}
 
 };
 
