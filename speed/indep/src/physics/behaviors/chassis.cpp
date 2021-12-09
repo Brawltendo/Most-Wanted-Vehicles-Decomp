@@ -43,24 +43,24 @@ void SuspensionRacer::ComputeAckerman(const float steering, const Chassis::State
 		steering_angle_radians = -steering_angle_radians;
 	}
 
-	float steer_left = (steering_angle_radians * wheel_base)
-					 / (steering_angle_radians * track_width_front + wheel_base);
-	float steer_right = steering_angle_radians;
 	// Ackermann steering geometry causes the outside wheel to have a smaller turning angle
 	// this is determined by the distance of the wheel to the center of the rear axle
+	// this equation is a modified version of 1/tan(L/(R+(T/2))), where L is the wheelbase, R is the steering radius, and T is the track width
+	// the track width param is already divided by 2 to represent the distance a wheel should be from the middle of an axle
+	float steer_left;
+	float steer_right;
+	float steer_outside = (steering_angle_radians * wheel_base)
+					    / (steering_angle_radians * track_width_front + wheel_base);
 	if (going_right)
 	{
-		steer_right = -steer_left;
-		steer_left = -steering_angle_radians;
-		/* steer_left = wheel_base * steering_angle_radians
-					 / (steering_angle_radians * track_width_front + wheel_base); */
+		steer_left = steer_outside;
+		steer_right = steering_angle_radians;
 	}
-	/* else
+	else
 	{
-		steer_left = -steer_left;
-		steer_right = -(wheel_base * steering_angle_radians
-					 / (steering_angle_radians * track_width_front + wheel_base));
-	} */
+		steer_left = -steering_angle_radians;
+		steer_right = -steer_outside;
+	}
 
 	// calculate forward vector for front wheels
 	UMath::Vector3 steer_vec;
@@ -68,10 +68,10 @@ void SuspensionRacer::ComputeAckerman(const float steering, const Chassis::State
 	steer_vec.z = cosf(steer_right);
 	steer_vec.x = sinf(steer_right);
 	VU0_MATRIX3x4_vect3mult(steer_vec, state.matrix, steer_vec);
-	//right.x = steer_vec.x;
-	//right.y = steer_vec.y;
-	//right.z = steer_vec.z;
-	right = steer_vec;
+	right.x = steer_vec.x;
+	right.y = steer_vec.y;
+	right.z = steer_vec.z;
+	//right = steer_vec;
 	right.w = steer_right;
 
 	steer_vec.y = 0.f;
