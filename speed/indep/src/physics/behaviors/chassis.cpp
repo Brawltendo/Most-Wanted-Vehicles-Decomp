@@ -27,12 +27,14 @@ extern UMath::Vector3* _cdecl VU0_MATRIX3x4_vect3mult(const UMath::Vector3& v, c
     mTires[3] = NULL;
 } */
 
+// MATCHING
 void SuspensionRacer::ComputeAckerman(const float steering, const Chassis::State& state, UMath::Vector4& left, UMath::Vector4& right)
 {
-	float steering_angle_radians = steering * TWO_PI;
-	const volatile float wheel_base = mChassisInfo.data->WHEEL_BASE;
+	UMath::Vector3 steer_vec;
 	int going_right = true;
-	const volatile float track_width_front = mChassisInfo.data->TRACK_WIDTH[0];
+	float wheel_base = mChassisInfo.data->WHEEL_BASE;
+	float track_width_front = mChassisInfo.data->TRACK_WIDTH[0];
+	float steering_angle_radians = steering * TWO_PI;
 
 	if (steering_angle_radians > PI)
 		steering_angle_radians -= TWO_PI;
@@ -63,7 +65,6 @@ void SuspensionRacer::ComputeAckerman(const float steering, const Chassis::State
 	}
 
 	// calculate forward vector for front wheels
-	UMath::Vector3 steer_vec;
 	steer_vec.y = 0.f;
 	steer_vec.z = cosf(steer_right);
 	steer_vec.x = sinf(steer_right);
