@@ -20,7 +20,7 @@ struct chassis
 		// The suspension length in inches
         float RIDE_HEIGHT[2];
 
-		// The distance, in meters, that a wheel should be from the center of the axle
+		// The distance, in meters, between a wheel and the center of the axle
         float TRACK_WIDTH[2];
 
 		// The maximum spring force when extending, in lbf/in

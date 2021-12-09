@@ -1,9 +1,10 @@
 #include "physics/behaviors/chassis.h"
 #include "math/mathcommon.h"
 
+extern float Sim_GetTime();
 extern void ScaleVector(UMath::Vector3* in, const float scale, UMath::Vector3& dest);
+extern UMath::Vector3* _cdecl TransformVector(const UMath::Vector3& v, const UMath::Matrix4& m, UMath::Vector3& dest);
 extern float _cdecl VU0_Atan2(float opposite, float adjacent);
-extern UMath::Vector3* _cdecl VU0_MATRIX3x4_vect3mult(const UMath::Vector3& v, const UMath::Matrix4& m, UMath::Vector3& dest);
 
 /* SuspensionRacer::SuspensionRacer()
 {
@@ -28,7 +29,7 @@ extern UMath::Vector3* _cdecl VU0_MATRIX3x4_vect3mult(const UMath::Vector3& v, c
 } */
 
 // MATCHING
-void SuspensionRacer::ComputeAckerman(const float steering, const Chassis::State& state, UMath::Vector4& left, UMath::Vector4& right)
+/* void SuspensionRacer::ComputeAckerman(const float steering, const Chassis::State& state, UMath::Vector4& left, UMath::Vector4& right)
 {
 	UMath::Vector3 steer_vec;
 	int going_right = true;
@@ -47,8 +48,7 @@ void SuspensionRacer::ComputeAckerman(const float steering, const Chassis::State
 
 	// Ackermann steering geometry causes the outside wheel to have a smaller turning angle than the inside wheel
 	// this is determined by the distance of the wheel to the center of the rear axle
-	// this equation is a modified version of 1/tan(L/(R+(T/2))), where L is the wheelbase, R is the steering radius, and T is the track width
-	// the track width param is already divided by 2 to represent the distance a wheel should be from the middle of an axle
+	// this equation is a modified version of 1/tan(L/(R+T/2)), where L is the wheelbase, R is the steering radius, and T is the track width
 	float steer_left;
 	float steer_right;
 	float steer_outside = (steering_angle_radians * wheel_base)
@@ -68,15 +68,15 @@ void SuspensionRacer::ComputeAckerman(const float steering, const Chassis::State
 	steer_vec.y = 0.f;
 	steer_vec.z = cosf(steer_right);
 	steer_vec.x = sinf(steer_right);
-	VU0_MATRIX3x4_vect3mult(steer_vec, state.matrix, steer_vec);
+	TransformVector(steer_vec, state.matrix, steer_vec);
 	right = UMath::Vector4(steer_vec, steer_right);
 
 	steer_vec.y = 0.f;
 	steer_vec.z = cosf(steer_left);
 	steer_vec.x = sinf(steer_left);
-	VU0_MATRIX3x4_vect3mult(steer_vec, state.matrix, steer_vec);
+	TransformVector(steer_vec, state.matrix, steer_vec);
 	left = UMath::Vector4(steer_vec, steer_left);
-}
+} */
 
 // NOT MATCHING
 // there are very slight differences in the instruction order detailed below
@@ -265,13 +265,72 @@ void SuspensionRacer::ComputeAckerman(const float steering, const Chassis::State
 	}
 } */
 
+float SuspensionRacer::DoHumanSteering(const Chassis::State& state)
+{
+	float input = state.steer_input;
+	float prev_steering = mSteering.Previous;
+
+	if (prev_steering >= 180.f)
+		prev_steering -= 360.f;
+
+	float steering_coeff = mTireInfo.data->STEERING;
+	ISteeringWheel::SteeringType steer_type = ISteeringWheel::SteeringType::kGamePad;
+
+	// LocalPlayer::IPlayer* PhysicsObject::GetPlayer()
+	int* player = (*(int* (**)())((*(int*)pad[12]) + 0x20))();
+	if (player)
+	{
+		// SteeringWheelDevice* LocalPlayer::GetSteeringDevice()
+		int* steering_device = (*(int* (__fastcall **)(int*))((*player) + 0x3C))(player);
+
+		if (steering_device)
+		{
+			// bool SteeringWheelDevice::IsConnected()
+			if ( (*(bool (__fastcall **)(int*))((*steering_device) + 0xC))(steering_device) )
+			{
+				// ISteeringWheel::SteeringType SteeringWheelDevice::GetSteeringType()
+				steer_type = (*(ISteeringWheel::SteeringType (__fastcall **)(int*))((*steering_device) + 0x10))(steering_device);
+			}
+			
+		}
+	}
+
+	float max_steering = CalculateMaxSteering(state, steer_type) * steering_coeff * input;
+	max_steering = UMath::Clamp(max_steering, -45.f, 45.f);
+	float new_steer = max_steering;
+
+	if (steer_type == ISteeringWheel::SteeringType::kGamePad)
+	{
+		input = SteerInputRemapTables->GetValue(input);
+		float steer_speed = (CalculateSteeringSpeed(state) * steering_coeff) * state.time;
+		float inc_steer = prev_steering + steer_speed;
+		float dec_steer = prev_steering - steer_speed;
+		if (max_steering > dec_steer)
+			dec_steer = max_steering;
+		if (inc_steer < dec_steer)
+			dec_steer = inc_steer;
+		
+		new_steer = dec_steer;
+		// this is absolutely pointless but it's part of the steering calculation for whatever reason
+		if (fabsf(new_steer) < 0.f)
+			new_steer = 0.f;
+	}
+	mSteering.Previous = new_steer;
+	mSteering.LastInput = input;
+	if (mGameBreaker > 0.f)
+		new_steer += (state.steer_input * 60.f - new_steer) * mGameBreaker;
+
+	mSteering.InputAverage.Record(mSteering.LastInput, Sim_GetTime());
+	return new_steer / 360.f;
+}
+
 /* float SuspensionRacer::Tire::ComputeLateralForce(float wheelLoad, float absSlipAngle)
 {
 	return 0.f;
-}
+} */
 
 // MATCHING
-float SuspensionRacer::Tire::GetPilotFactor(const float speed)
+/* float SuspensionRacer::Tire::GetPilotFactor(const float speed)
 {
 	// these if statements look so stupid but it's the only way I was able to influence the asm to line up
 	// it should just be a single statement with ORs but that didn't match for whatever reason

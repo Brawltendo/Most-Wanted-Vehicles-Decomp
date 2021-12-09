@@ -3,6 +3,7 @@
 #include "generated/attribsys/classes/tires.h"
 #include "generated/attribsys/classes/transmission.h"
 
+#include "input/isteeringwheel.h"
 #include "interfaces/simables/ichassis.h"
 #include "math/vector.h"
 #include "math/matrix.h"
@@ -41,6 +42,37 @@ static UMath::Vector2 DriftStabilizerData[] =
 	UMath::Vector2(1.5707964f, 0.f)
 };
 static tGraph<float> DriftStabilizerTable = tGraph<float>(DriftStabilizerData, 7);
+static float JoystickInputToSteerRemap1[] = 
+{
+	-1.f, -0.712f, -0.453f, -0.303f, -0.216f, -0.148f, -0.116f, -0.08f, -0.061f, -0.034f,
+	0.f,
+	0.034f, 0.061f, 0.08f, 0.116f, 0.148f, 0.216f, 0.303f, 0.453f, 0.712f, 1.f
+};
+static float JoystickInputToSteerRemap2[] = 
+{
+	-1.f, -0.736f, -0.542f, -0.4f, -0.292f, -0.214f, -0.16f, -0.123f, -0.078f, -0.036f,
+	0.f,
+	0.036f, 0.078f, 0.123f, 0.16f, 0.214f, 0.292f, 0.4f, 0.542f, 0.736f, 1.f
+};
+static float JoystickInputToSteerRemap3[] = 
+{
+	-1.f, -0.8f, -0.615f, -0.483f, -0.388f, -0.288f, -0.22f, -0.161f, -0.111f, -0.057f,
+	0.f,
+	0.057f, 0.111f, 0.161f, 0.22f, 0.288f, 0.388f, 0.483f, 0.615f, 0.8f, 1.f
+};
+static float JoystickInputToSteerRemapDrift[] = 
+{
+	-1.f, -1.f, -0.688f, -0.492f, -0.319f, -0.228f, -0.16f, -0.123f, -0.085f, -0.05f,
+	0.f,
+	0.05f, 0.085f, 0.123f, 0.16f, 0.228f, 0.319f, 0.492f, 0.688f, 1.f, 1.f
+};
+static Table SteerInputRemapTables[] = 
+{
+	Table(21, -1.f, 1.f, 10.f, JoystickInputToSteerRemap1),
+	Table(21, -1.f, 1.f, 10.f, JoystickInputToSteerRemap2),
+	Table(21, -1.f, 1.f, 10.f, JoystickInputToSteerRemap3),
+	Table(21, -1.f, 1.f, 10.f, JoystickInputToSteerRemapDrift)
+};
 
 namespace Chassis
 {
@@ -84,6 +116,9 @@ public:
     void OnTaskSimulate(float dT);
 	void ComputeAckerman(const float steering, const Chassis::State& state, UMath::Vector4& left, UMath::Vector4& right);
 	void DoDrifting(const Chassis::State& state);
+	float CalculateMaxSteering(const Chassis::State& state, ISteeringWheel::SteeringType steer_type);
+	float CalculateSteeringSpeed(const Chassis::State& state);
+	float DoHumanSteering(const Chassis::State& state);
 
 	int pad[0x6C / 0x4];
 	Attrib::Gen::chassis mChassisInfo;

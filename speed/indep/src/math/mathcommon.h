@@ -37,4 +37,19 @@ namespace UMath
 	else return 0.f;
 } */
 
+_forceinline float Clamp(const float in, const float min, const float max)
+{
+	float c;
+	if (in > min)
+	{
+		c = in;
+		if (max < c)
+			c = max;
+	}
+	else
+		c = min;
+	
+	return c;
+}
+
 } // namespace UMath
