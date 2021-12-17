@@ -224,3 +224,5 @@ public:
 
 };
 //const int offset = offsetof(SuspensionRacer::Tire, mRoadSpeed);
+
+float YawFrictionBoost(float yaw, float ebrake, float speed, float yawcontrol, float grade);

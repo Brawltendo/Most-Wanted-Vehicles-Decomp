@@ -267,7 +267,7 @@ extern float _cdecl VU0_Atan2(float opposite, float adjacent);
 
 // NOT MATCHING
 // see comments for explanation
-float SuspensionRacer::DoHumanSteering(const Chassis::State& state)
+/* float SuspensionRacer::DoHumanSteering(const Chassis::State& state)
 {
 	float input = state.steer_input;
 	float prev_steering = mSteering.Previous;
@@ -333,7 +333,7 @@ float SuspensionRacer::DoHumanSteering(const Chassis::State& state)
 
 	mSteering.InputAverage.Record(mSteering.LastInput, Sim_GetTime());
 	return new_steer / 360.f;
-}
+} */
 
 /* float SuspensionRacer::Tire::ComputeLateralForce(float wheelLoad, float absSlipAngle)
 {
@@ -570,3 +570,25 @@ static float WheelMomentOfInertia = 10.f;
 	return mLateralForce;
 } */
 
+static float LowSpeedSpeed = 0.f;
+static float HighSpeedSpeed = 30.f;
+static float MaxYawBonus = 0.35f;
+static float LowSpeedYawBoost = 0.f;
+static float HighSpeedYawBoost = 1.f;
+static float YawEBrakeThreshold = 0.5f;
+static float YawAngleThreshold = 20.f;
+// MATCHING
+float YawFrictionBoost(float yaw, float ebrake, float speed, float yawcontrol, float grade)
+{
+	float abs_grade = fabsf(grade) + 1.f;
+	float abs_yaw = fabsf(yaw);
+	if (ebrake > YawEBrakeThreshold && abs_yaw < YawAngleThreshold * DEG_TO_RAD)
+		return abs_grade;
+	
+	float bonus = abs_yaw 
+				* ((speed - LowSpeedSpeed) / (HighSpeedSpeed - LowSpeedSpeed)
+				* (HighSpeedYawBoost - LowSpeedYawBoost) + LowSpeedYawBoost) * yawcontrol;
+	if (bonus > MaxYawBonus)
+		bonus = MaxYawBonus;
+	return abs_grade + bonus;
+}

@@ -9,6 +9,7 @@
 #define MPS_TO_MPH(x) (x * 2.23699f)
 #define NORMALIZE_ANGLE_RADIANS(x) (x / TWO_PI)
 #define NORMALIZE_ANGLE_DEGREES(x) (x / 360.f)
+#define DEG_TO_RAD 0.017453292f
 
 // This function was probably conditionally compiled per platform for the proper intrinsics
 /* SPEED_NO_INLINE
