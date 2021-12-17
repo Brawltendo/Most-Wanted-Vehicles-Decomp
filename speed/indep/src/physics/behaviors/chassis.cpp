@@ -266,7 +266,7 @@ extern float _cdecl VU0_Atan2(float opposite, float adjacent);
 } */
 
 // MATCHING
-float SuspensionRacer::DoHumanSteering(const Chassis::State& state)
+/* float SuspensionRacer::DoHumanSteering(const Chassis::State& state)
 {
 	float input = state.steer_input;
 	float prev_steering = mSteering.Previous;
@@ -327,7 +327,7 @@ float SuspensionRacer::DoHumanSteering(const Chassis::State& state)
 
 	mSteering.InputAverage.Record(mSteering.LastInput, Sim_GetTime());
 	return new_steer / 360.f;
-}
+} */
 
 /* float SuspensionRacer::Tire::ComputeLateralForce(float wheelLoad, float absSlipAngle)
 {
@@ -388,6 +388,28 @@ static float StaticToDynamicBrakeForceRatio = 1.2f;
 	else
 		mBrakeLocked = false;
 } */
+
+// MATCHING
+void SuspensionRacer::Tire::CheckSign()
+{
+	// this function is called but doesn't actually seem to be used for anything other than debugging
+	// mLastSign isn't used anywhere outside of this function as far as I know
+
+	if (mLastSign == WAS_POSITIVE)
+	{
+		if (mAV < 0.f)
+			mAV = 0.f;
+	}
+	else if (mLastSign == WAS_NEGATIVE && mAV > 0.f)
+		mAV = 0.f;
+	
+	if (mAV > FLT_EPSILON)
+		mLastSign = WAS_POSITIVE;
+	else if (mAV < -FLT_EPSILON)
+		mLastSign = WAS_NEGATIVE;
+	else
+		mLastSign = WAS_ZERO;
+}
 
 static float RollingFriction = 2.f;
 static float WheelMomentOfInertia = 10.f;
