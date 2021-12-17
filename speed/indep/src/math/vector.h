@@ -6,6 +6,8 @@ namespace UMath
 
 struct Vector2
 {
+	static Vector2 kZero;
+
     union
     {
         struct
@@ -109,6 +111,8 @@ struct Vector2
 
 struct Vector3
 {
+	static Vector3 kZero;
+
     union
     {
         struct
@@ -224,6 +228,8 @@ struct Vector3
 
 struct Vector4
 {
+	static Vector4 kZero;
+
     union
     {
         struct

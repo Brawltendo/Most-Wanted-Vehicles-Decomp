@@ -116,6 +116,7 @@ public:
     void OnTaskSimulate(float dT);
 	void ComputeAckerman(const float steering, const Chassis::State& state, UMath::Vector4& left, UMath::Vector4& right);
 	void DoDrifting(const Chassis::State& state);
+	void DoWheelForces(const Chassis::State& state);
 	float CalculateMaxSteering(const Chassis::State& state, ISteeringWheel::SteeringType steer_type);
 	float CalculateSteeringSpeed(const Chassis::State& state);
 	float DoHumanSteering(const Chassis::State& state);

@@ -12,17 +12,7 @@ parser.add_argument('--addr', type=str, required=True, nargs=2, help=
 parser.add_argument('--name', type=str, required=True, help=
 					'''The output file name without an extension. 
 					The suffix '_orig' will be added so it doesn't conflict with the compiler's asm output.''')
-#parser.add_argument('--encoding', type=str, required=False, help=
-#					'''The source encoding of the asm input. 
-#					Use this arg to convert the input to UTF-8 if it's in a different format. 
-#					You will likely need to provide this arg as dumpbin's output is not in UTF-8.''')
 args = parser.parse_args()
-
-#if args.encoding:
-##	with open(os.path.dirname(os.path.realpath(__file__)) + '\\' + args.i, 'r') as f:
-##		data = f.read()
-##		reEncoded = open(os.path.dirname(os.path.realpath(__file__)) + '\\' + args.i, 'w')
-##		reEncoded.write(unicode(data, args.encoding).encode('utf-8'))
 
 with open(args.i, 'r') as inAsm:
 	foundStartAddr = False
@@ -65,7 +55,6 @@ jmpInsts = [
 
 with open(args.name + '_orig.asm', 'w') as outAsm:
 	for line in linesToFix:
-		lineLen = len(line)
 		origAddr = line[2:10]
 		instruction = line[12:24]
 		instData = line[24:]
