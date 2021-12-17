@@ -11,6 +11,8 @@ struct Collection
   char pad_0004[4];
 };
 
+void* DefaultDataArea(uint32_t bytes);
+
 namespace Private
 {
 

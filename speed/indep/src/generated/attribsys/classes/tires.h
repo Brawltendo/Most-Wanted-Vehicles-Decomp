@@ -1,4 +1,4 @@
-#include "attrib/collection.h"
+#include "attrib/attrib.h"
 #include "physics/physicstypes.h"
 
 namespace Attrib
@@ -11,7 +11,7 @@ struct tires
     char pad_0000[8];
     struct LayoutStruct
     {
-        Collection col_YAW_CONTROL;
+        Collection _Array_YAW_CONTROL;
         float YAW_CONTROL[4];
         AxlePair GRIP_SCALE;
         AxlePair DYNAMIC_GRIP;

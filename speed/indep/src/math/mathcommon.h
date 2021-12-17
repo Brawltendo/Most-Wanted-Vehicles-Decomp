@@ -39,49 +39,27 @@ namespace UMath
 } */
 
 // MATCHING
-// Returns the smallest of 2 floating point values
-/* float Min(const float a, const float b)
+// Returns the smallest of 2 float values
+_forceinline
+float Min(const float a, const float b)
 {
-	if (a < b)
-		return a;
-	else
-		return b;
-} */
+	return a < b ? a : b;
+}
 
 // MATCHING
-// Returns the greatest of 2 floating point values
-/* float Max(const float a, const float b)
+// Returns the greatest of 2 float values
+_forceinline
+float Max(const float a, const float b)
 {
-	if (a > b)
-		return a;
-	else
-		return b;
-} */
+	return a > b ? a : b;
+}
 
 // MATCHING
-// force inline here just so the output asm is easier to diff
-// it'll automatically get inlined depending on where it's used otherwise, but it'll throw the offsets off in the output
+// Clamps a float value within a defined range
 _forceinline
 float Clamp(const float in, const float min, const float max)
 {
-	float c;// = in;
-	if (in > min)
-		c = in;
-	else
-		c = min;
-	if (max < c)
-		c = max;
-		
-	/* if (c > min)
-	{
-		//c = in;
-		if (max < c)
-			c = max;
-	}
-	else
-		c = min; */
-	
-	return c;
+	return Min(max, Max(in, min));
 }
 
 } // namespace UMath

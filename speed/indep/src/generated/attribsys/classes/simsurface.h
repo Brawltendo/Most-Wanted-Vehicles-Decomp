@@ -1,4 +1,4 @@
-#include "attrib/collection.h"
+#include "attrib/attrib.h"
 #include "math/vector.h"
 
 struct TireEffectRecord
@@ -28,11 +28,11 @@ struct simsurface
     char pad_0000[8];
     struct LayoutStruct
     {
-        Collection col_TireDriveEffects;
+        Collection _Array_TireDriveEffects;
         TireEffectRecord TireDriveEffects[3];
-        Collection col_TireSlideEffects;
+        Collection _Array_TireSlideEffects;
         TireEffectRecord TireSlideEffects[3];
-        Collection col_TireSlipEffects;
+        Collection _Array_TireSlipEffects;
         TireEffectRecord TireSlipEffects[3];
         RoadNoiseRecord RenderNoise;
         char *CollectionName;

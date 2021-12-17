@@ -1,4 +1,4 @@
-#include "attrib/collection.h"
+#include "attrib/attrib.h"
 
 namespace Attrib
 {
@@ -10,11 +10,11 @@ struct transmission
     char pad_0000[8];
     struct LayoutStruct
     {
-        Collection col_GEAR_RATIO;
+        Collection _Array_GEAR_RATIO;
         float GEAR_RATIO[9];
-        Collection col_DIFFERENTIAL;
+        Collection _Array_DIFFERENTIAL;
         float DIFFERENTIAL[3];
-        Collection col_GEAR_EFFICIENCY;
+        Collection _Array_GEAR_EFFICIENCY;
         float GEAR_EFFICIENCY[9];
         float TORQUE_CONVERTER;
         float TORQUE_SPLIT;

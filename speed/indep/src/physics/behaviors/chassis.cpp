@@ -265,9 +265,8 @@ extern float _cdecl VU0_Atan2(float opposite, float adjacent);
 	}
 } */
 
-// NOT MATCHING
-// see comments for explanation
-/* float SuspensionRacer::DoHumanSteering(const Chassis::State& state)
+// MATCHING
+float SuspensionRacer::DoHumanSteering(const Chassis::State& state)
 {
 	float input = state.steer_input;
 	float prev_steering = mSteering.Previous;
@@ -298,13 +297,8 @@ extern float _cdecl VU0_Atan2(float opposite, float adjacent);
 	}
 
 	float max_steering = CalculateMaxSteering(state, steer_type) * steering_coeff * input;
-	float temp_clamp = UMath::Clamp(max_steering, -45.f, 45.f);
-	// Clamp is inlined here but it's causing some issues with the resulting asm
-	// the original code definitely had a clamp function inlined here since I'm getting nearly identical results
-	// making this volatile solves the codegen but throws off the stack frame by 4 bytes
-	// the stack is a very minor issue though and the rest of the asm is identical
-	volatile float max_steer_range = temp_clamp;
-	float new_steer = temp_clamp;
+	float max_steer_range = UMath::Clamp(max_steering, -45.f, 45.f);
+	float new_steer = max_steer_range;
 
 	if (steer_type == ISteeringWheel::SteeringType::kGamePad)
 	{
@@ -333,7 +327,7 @@ extern float _cdecl VU0_Atan2(float opposite, float adjacent);
 
 	mSteering.InputAverage.Record(mSteering.LastInput, Sim_GetTime());
 	return new_steer / 360.f;
-} */
+}
 
 /* float SuspensionRacer::Tire::ComputeLateralForce(float wheelLoad, float absSlipAngle)
 {
@@ -578,7 +572,7 @@ static float HighSpeedYawBoost = 1.f;
 static float YawEBrakeThreshold = 0.5f;
 static float YawAngleThreshold = 20.f;
 // MATCHING
-float YawFrictionBoost(float yaw, float ebrake, float speed, float yawcontrol, float grade)
+/* float YawFrictionBoost(float yaw, float ebrake, float speed, float yawcontrol, float grade)
 {
 	float abs_grade = fabsf(grade) + 1.f;
 	float abs_yaw = fabsf(yaw);
@@ -591,4 +585,4 @@ float YawFrictionBoost(float yaw, float ebrake, float speed, float yawcontrol, f
 	if (bonus > MaxYawBonus)
 		bonus = MaxYawBonus;
 	return abs_grade + bonus;
-}
+} */

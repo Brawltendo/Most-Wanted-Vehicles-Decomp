@@ -1,4 +1,4 @@
-#include "attrib/collection.h"
+#include "attrib/attrib.h"
 
 namespace Attrib
 {
@@ -10,11 +10,11 @@ struct engine
     char pad_0000[8];
     struct LayoutStruct
     {
-        Collection col_TORQUE;
+        Collection _Array_TORQUE;
 		float TORQUE[9];
-		Collection col_SPEED_LIMITER;
+		Collection _Array_SPEED_LIMITER;
 		float SPEED_LIMITER[2];
-		Collection col_ENGINE_BRAKING;
+		Collection _Array_ENGINE_BRAKING;
 		float ENGINE_BRAKING[3];
 		float FLYWHEEL_MASS;
 		float MAX_RPM;
