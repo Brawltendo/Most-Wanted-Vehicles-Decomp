@@ -181,6 +181,7 @@ public:
 		float GetPilotFactor(const float speed);
 		void CheckForBrakeLock(float ground_force);
 		void CheckSign();
+		void UpdateFree(float dT);
 		float UpdateLoaded(float lat_vel, float fwd_vel, float body_speed, float load, float dT);
         
 		float mRadius;

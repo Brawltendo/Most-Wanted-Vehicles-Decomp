@@ -364,7 +364,7 @@ static float EBrakingTorque = 10.f;
 static float BrakeLockAngularVelocityFactor = 100.f;
 static float StaticToDynamicBrakeForceRatio = 1.2f;
 // MATCHING
-/* void SuspensionRacer::Tire::CheckForBrakeLock(float ground_force)
+void SuspensionRacer::Tire::CheckForBrakeLock(float ground_force)
 {
 	Attrib::Gen::brakes::LayoutStruct* brakes_data = mBrakes->data;
 	float brake_force = (((brakes_data->BRAKES[mAxleIndex] * 1.3558f) * brakes_data->BRAKE_LOCK[mAxleIndex]) * BrakingTorque) * mBrake;
@@ -387,7 +387,7 @@ static float StaticToDynamicBrakeForceRatio = 1.2f;
 	}
 	else
 		mBrakeLocked = false;
-} */
+}
 
 // MATCHING
 void SuspensionRacer::Tire::CheckSign()
@@ -411,8 +411,40 @@ void SuspensionRacer::Tire::CheckSign()
 		mLastSign = WAS_ZERO;
 }
 
-static float RollingFriction = 2.f;
 static float WheelMomentOfInertia = 10.f;
+// MATCHING
+// NOTE: Only matches when the functions that it calls are uncommented, since it needs to know the calling convention
+// Updates forces for an unloaded/airborne tire
+void SuspensionRacer::Tire::UpdateFree(float dT)
+{
+	mLoad = 0.f;
+	mSlip = 0.f;
+	mTraction = 0.f;
+	mSlipAngle = 0.f;
+	CheckForBrakeLock(0.f);
+	
+	if (mBrakeLocked)
+	{
+		mAngularAcc = 0.f;
+		mAV = 0.f;
+	}
+	else
+	{
+		float brake_torque = ((mBrakes->data->BRAKES[mAxleIndex] * 1.3558f) * BrakingTorque) * mBrake;
+		float ebrake_torque = ((mBrakes->data->EBRAKE * 1.3558f) * EBrakingTorque) * mEBrake;
+		mBrakeTorque += mAV > 0.f ? -brake_torque  : brake_torque;
+		mBrakeTorque += mAV > 0.f ? -ebrake_torque : ebrake_torque;
+
+		float accel = (mBrakeTorque + mDriveTorque) / WheelMomentOfInertia;
+		mAngularAcc = accel;
+		mAV += accel * dT;
+	}
+	CheckSign();
+	mLateralForce = 0.f;
+	mLongitudeForce = 0.f;
+}
+
+static float RollingFriction = 2.f;
 /* float SuspensionRacer::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float body_speed, float load, float dT)
 {
 	float bt = (mBrakes->data->BRAKES[mAxleIndex] * 1.3558f) * BrakingTorque;
