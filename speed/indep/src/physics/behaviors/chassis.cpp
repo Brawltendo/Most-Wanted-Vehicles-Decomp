@@ -133,7 +133,7 @@ extern float _cdecl VU0_Atan2(float opposite, float adjacent);
 } */
 
 // NOT MATCHING
-// see comments below for explanation
+// see comments for explanation
 /* void SuspensionRacer::DoDrifting(const Chassis::State& state)
 {
 	if (mDrift.State && ((state.flags & 1) || state.driver_style == 1))
@@ -265,6 +265,8 @@ extern float _cdecl VU0_Atan2(float opposite, float adjacent);
 	}
 } */
 
+// NOT MATCHING
+// see comments for explanation
 float SuspensionRacer::DoHumanSteering(const Chassis::State& state)
 {
 	float input = state.steer_input;
@@ -296,8 +298,13 @@ float SuspensionRacer::DoHumanSteering(const Chassis::State& state)
 	}
 
 	float max_steering = CalculateMaxSteering(state, steer_type) * steering_coeff * input;
-	max_steering = UMath::Clamp(max_steering, -45.f, 45.f);
-	float new_steer = max_steering;
+	float temp_clamp = UMath::Clamp(max_steering, -45.f, 45.f);
+	// Clamp is inlined here but it's causing some issues with the resulting asm
+	// the original code definitely had a clamp function inlined here since I'm getting nearly identical results
+	// making this volatile solves the codegen but throws off the stack frame by 4 bytes
+	// the stack is a very minor issue though and the rest of the asm is identical
+	volatile float max_steer_range = temp_clamp;
+	float new_steer = temp_clamp;
 
 	if (steer_type == ISteeringWheel::SteeringType::kGamePad)
 	{
@@ -305,8 +312,8 @@ float SuspensionRacer::DoHumanSteering(const Chassis::State& state)
 		float steer_speed = (CalculateSteeringSpeed(state) * steering_coeff) * state.time;
 		float inc_steer = prev_steering + steer_speed;
 		float dec_steer = prev_steering - steer_speed;
-		if (max_steering > dec_steer)
-			dec_steer = max_steering;
+		if (max_steer_range > dec_steer)
+			dec_steer = max_steer_range;
 		if (inc_steer < dec_steer)
 			dec_steer = inc_steer;
 		
@@ -315,8 +322,12 @@ float SuspensionRacer::DoHumanSteering(const Chassis::State& state)
 		if (fabsf(new_steer) < 0.f)
 			new_steer = 0.f;
 	}
-	mSteering.Previous = new_steer;
 	mSteering.LastInput = input;
+	mSteering.Previous = new_steer;
+
+	// if in speedbreaker, increase the current steering angle beyond the normal maximum
+	// this change is instant, so the visual steering angle while in speedbreaker doesn't accurately represent this
+	// instead it interpolates to this value so it looks nicer
 	if (mGameBreaker > 0.f)
 		new_steer += (state.steer_input * 60.f - new_steer) * mGameBreaker;
 

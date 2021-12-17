@@ -10,11 +10,11 @@
 #define NORMALIZE_ANGLE_RADIANS(x) (x / TWO_PI)
 #define NORMALIZE_ANGLE_DEGREES(x) (x / 360.f)
 
-/* float _cdecl fsqrt(float x)
+// This function was probably conditionally compiled per platform for the proper intrinsics
+/* SPEED_NO_INLINE
+float fsqrt(float x)
 {
-	// use inline asm here because the compiler is failing me with the intrinsics lol
-	__asm fld [esp+4]
-	__asm fsqrt
+	return sqrtf(x);
 } */
 
 namespace UMath
@@ -37,17 +37,48 @@ namespace UMath
 	else return 0.f;
 } */
 
-_forceinline float Clamp(const float in, const float min, const float max)
+// MATCHING
+// Returns the smallest of 2 floating point values
+/* float Min(const float a, const float b)
 {
-	float c;
+	if (a < b)
+		return a;
+	else
+		return b;
+} */
+
+// MATCHING
+// Returns the greatest of 2 floating point values
+/* float Max(const float a, const float b)
+{
+	if (a > b)
+		return a;
+	else
+		return b;
+} */
+
+// MATCHING
+// force inline here just so the output asm is easier to diff
+// it'll automatically get inlined depending on where it's used otherwise, but it'll throw the offsets off in the output
+_forceinline
+float Clamp(const float in, const float min, const float max)
+{
+	float c;// = in;
 	if (in > min)
-	{
 		c = in;
+	else
+		c = min;
+	if (max < c)
+		c = max;
+		
+	/* if (c > min)
+	{
+		//c = in;
 		if (max < c)
 			c = max;
 	}
 	else
-		c = min;
+		c = min; */
 	
 	return c;
 }

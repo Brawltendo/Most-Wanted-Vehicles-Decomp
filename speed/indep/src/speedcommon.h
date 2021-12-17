@@ -31,6 +31,6 @@ typedef unsigned int       uint_fast32_t;
 //typedef long long          intmax_t;
 //typedef unsigned long long uintmax_t;
 
-typedef volatile float f32;
+#define SPEED_NO_INLINE _declspec(noinline)
 
 #define CHECK_FLAG_ON(in_flag, check) (in_flag & check) != 0
