@@ -4,7 +4,7 @@
 extern float Sim_GetTime();
 extern void ScaleVector(UMath::Vector3* in, const float scale, UMath::Vector3& dest);
 extern UMath::Vector3* _cdecl TransformVector(const UMath::Vector3& v, const UMath::Matrix4& m, UMath::Vector3& dest);
-extern float _cdecl VU0_Atan2(float opposite, float adjacent);
+extern float VU0_Atan2(float opposite, float adjacent);
 
 /* SuspensionRacer::SuspensionRacer()
 {
@@ -329,13 +329,54 @@ extern float _cdecl VU0_Atan2(float opposite, float adjacent);
 	return new_steer / 360.f;
 } */
 
-/* float SuspensionRacer::Tire::ComputeLateralForce(float wheelLoad, float absSlipAngle)
+static float ZeroDegreeTable[6]  = { 0.f };
+static float TwoDegreeTable[]    = { 0.f, 1.2f, 2.3f, 3.f, 3.f, 2.8f };
+static float FourDegreeTable[]   = { 0.f, 1.7f, 3.2f, 4.3f, 5.1f, 5.2f };
+static float SixDegreeTable[]    = { 0.f, 1.8f, 3.5f, 4.9f, 5.8f, 6.1f };
+static float EightDegreeTable[]  = { 0.f, 1.83f, 3.6f, 5.f, 5.96f, 6.4f };
+static float TenDegreeTable[]    = { 0.f, 1.86f, 3.7f, 5.1f, 6.13f, 6.7f };
+static float TwelveDegreeTable[] = { 0.f, 1.9f, 3.8f, 5.2f, 6.3f, 7.1f };
+static Table ZeroDegree   = Table(6, 0.f, 10.f, 0.5f, ZeroDegreeTable);
+static Table TwoDegree    = Table(6, 0.f, 10.f, 0.5f, TwoDegreeTable);
+static Table FourDegree   = Table(6, 0.f, 10.f, 0.5f, FourDegreeTable);
+static Table SixDegree    = Table(6, 0.f, 10.f, 0.5f, SixDegreeTable);
+static Table EightDegree  = Table(6, 0.f, 10.f, 0.5f, EightDegreeTable);
+static Table TenDegree    = Table(6, 0.f, 10.f, 0.5f, TenDegreeTable);
+static Table TwelveDegree = Table(6, 0.f, 10.f, 0.5f, TwelveDegreeTable);
+static Table* LoadSensitivityTable[] = 
 {
-	return 0.f;
-} */
+	&ZeroDegree, &TwoDegree, &FourDegree, &SixDegree, &EightDegree, &TenDegree, &TwelveDegree
+};
+static int LatForceMultipliers[] = { -2, -2, -2, -2 };
+static int* pLatForceMultipliers = LatForceMultipliers;
+float SuspensionRacer::Tire::ComputeLateralForce(float load, float slip_angle)
+{
+	float angle = (slip_angle * 360.f) * 0.5f;
+	uint32_t slip_angle_table = (int)angle;
+	float load_sensitivity_in = (load * 0.001f);
+	load_sensitivity_in *= 0.8f;
+	float extra = angle - slip_angle_table;
+	bool use_max_table = slip_angle_table < 6;
+	
+	if (use_max_table)
+	{
+		float grip_scale = mSpecs->data->GRIP_SCALE.Pair[mAxleIndex];
+		return (((LoadSensitivityTable[6]->GetValue(load_sensitivity_in)
+			 * pLatForceMultipliers[2]) * mGripBoost) * grip_scale) * 2500.f;
+	}
+	else
+	{
+		float low  = LoadSensitivityTable[slip_angle_table]->GetValue(load_sensitivity_in);
+		float high = LoadSensitivityTable[slip_angle_table + 1]->GetValue(load_sensitivity_in);
+		//float load_sensitivity = ;
+		return (extra * (high - low) + low)
+			 * mSpecs->data->GRIP_SCALE.Pair[mAxleIndex] * pLatForceMultipliers[2]
+			 * mGripBoost * 2500.f;
+	}
+}
 
 // MATCHING
-/* float SuspensionRacer::Tire::GetPilotFactor(const float speed)
+float SuspensionRacer::Tire::GetPilotFactor(const float speed)
 {
 	// these if statements look so stupid but it's the only way I was able to influence the asm to line up
 	// it should just be a single statement with ORs but that didn't match for whatever reason
@@ -357,7 +398,7 @@ extern float _cdecl VU0_Atan2(float opposite, float adjacent);
 	else 
 		factor_clamped = 1.f;
 	return factor_clamped * 0.15f + 0.85f;
-} */
+}
 
 static float BrakingTorque = 4.f;
 static float EBrakingTorque = 10.f;
@@ -445,7 +486,7 @@ void SuspensionRacer::Tire::UpdateFree(float dT)
 }
 
 static float RollingFriction = 2.f;
-/* float SuspensionRacer::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float body_speed, float load, float dT)
+float SuspensionRacer::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float body_speed, float load, float dT)
 {
 	float bt = (mBrakes->data->BRAKES[mAxleIndex] * 1.3558f) * BrakingTorque;
 	float ebt = (mBrakes->data->EBRAKE * 1.3558f) * EBrakingTorque;
@@ -595,9 +636,7 @@ static float RollingFriction = 2.f;
 	else
 	{
 		// inline asm to force the intrinsic since the compiler keeps calling sinf instead of using the intrinsic
-		float sa_radians = mSlipAngle * TWO_PI;
-		__asm fsin
-		mLongitudeForce -= sa_radians * (mDragReduction / mSpecs->data->GRIP_SCALE.Pair[mAxleIndex]) * mLateralForce;
+		mLongitudeForce -= sinf(mSlipAngle * TWO_PI) * (mDragReduction / mSpecs->data->GRIP_SCALE.Pair[mAxleIndex]) * mLateralForce;
 	}
 
 	if (mBrakeLocked)
@@ -616,7 +655,7 @@ static float RollingFriction = 2.f;
 	mAV += dT * mAngularAcc;
 	CheckSign();
 	return mLateralForce;
-} */
+}
 
 static float LowSpeedSpeed = 0.f;
 static float HighSpeedSpeed = 30.f;

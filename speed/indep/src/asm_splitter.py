@@ -66,7 +66,8 @@ with open(args.name + '_orig.asm', 'w') as outAsm:
 		hasJmpInst = False
 
 		for inst in jmpInsts:
-			if inst in instruction:
+			# strip whitespace and check for equality to avoid duplicate output
+			if inst == instruction.strip():
 				jmpAddr = int(instData, 16)
 				# make sure the address is within the function boundaries
 				if jmpAddr >= int(args.addr[0], 16) or jmpAddr <= int(args.addr[1], 16):

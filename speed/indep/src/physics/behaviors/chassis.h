@@ -178,7 +178,7 @@ public:
 
     struct Tire : Wheel
     {
-		float ComputeLateralForce(float wheel_load, float abs_slip_angle);
+		float ComputeLateralForce(float load, float slip_angle);
 		float GetPilotFactor(const float speed);
 		void CheckForBrakeLock(float ground_force);
 		void CheckSign();
@@ -192,7 +192,7 @@ public:
         float mLoad;
         float mLateralForce;
         float mLongitudeForce;
-        volatile float mDriveTorque;
+        float mDriveTorque;
         float mBrakeTorque;
         float mLateralBoost;
         float mTractionBoost;
@@ -212,7 +212,7 @@ public:
         float mGripBoost;
         float mDriftFriction;
         float mLateralSpeed;
-        volatile bool mBrakeLocked;
+        bool mBrakeLocked;
 
         enum LastRotationSign
         {

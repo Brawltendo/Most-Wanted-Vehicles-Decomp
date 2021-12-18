@@ -12,11 +12,11 @@
 #define DEG_TO_RAD 0.017453292f
 
 // This function was probably conditionally compiled per platform for the proper intrinsics
-/* SPEED_NO_INLINE
+SPEED_NO_INLINE
 float fsqrt(float x)
 {
 	return sqrtf(x);
-} */
+}
 
 namespace UMath
 {
