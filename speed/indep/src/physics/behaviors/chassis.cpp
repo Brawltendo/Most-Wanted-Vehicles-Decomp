@@ -1,10 +1,11 @@
 #include "physics/behaviors/chassis.h"
+
+#include "math/bmath.h"
 #include "math/mathcommon.h"
 
 extern float Sim_GetTime();
 extern void ScaleVector(UMath::Vector3* in, const float scale, UMath::Vector3& dest);
 extern UMath::Vector3* _cdecl TransformVector(const UMath::Vector3& v, const UMath::Matrix4& m, UMath::Vector3& dest);
-extern float VU0_Atan2(float opposite, float adjacent);
 
 /* SuspensionRacer::SuspensionRacer()
 {
@@ -352,26 +353,27 @@ static int* pLatForceMultipliers = LatForceMultipliers;
 float SuspensionRacer::Tire::ComputeLateralForce(float load, float slip_angle)
 {
 	float angle = (slip_angle * 360.f) * 0.5f;
-	uint32_t slip_angle_table = (int)angle;
-	float load_sensitivity_in = (load * 0.001f);
-	load_sensitivity_in *= 0.8f;
-	float extra = angle - slip_angle_table;
-	bool use_max_table = slip_angle_table < 6;
+	// there are 3 instructions here that are out of order but everything else matches
+	// Black Box what did you do???????
+	// why??????
+	int slip_angle_table = (int)angle;
+	load = (load * 0.001f) * 0.8f;
 	
-	if (use_max_table)
+	if (slip_angle_table >= 6)
 	{
 		float grip_scale = mSpecs->data->GRIP_SCALE.Pair[mAxleIndex];
-		return (((LoadSensitivityTable[6]->GetValue(load_sensitivity_in)
+		return (((LoadSensitivityTable[6]->GetValue(load)
 			 * pLatForceMultipliers[2]) * mGripBoost) * grip_scale) * 2500.f;
 	}
 	else
 	{
-		float low  = LoadSensitivityTable[slip_angle_table]->GetValue(load_sensitivity_in);
-		float high = LoadSensitivityTable[slip_angle_table + 1]->GetValue(load_sensitivity_in);
-		//float load_sensitivity = ;
-		return (extra * (high - low) + low)
-			 * mSpecs->data->GRIP_SCALE.Pair[mAxleIndex] * pLatForceMultipliers[2]
-			 * mGripBoost * 2500.f;
+		float low  = LoadSensitivityTable[slip_angle_table]->GetValue(load);
+		float high = LoadSensitivityTable[slip_angle_table + 1]->GetValue(load);
+		float grip_scale = mSpecs->data->GRIP_SCALE.Pair[mAxleIndex];
+		float delta = angle - slip_angle_table;
+		return ((((delta * (high - low) + low)
+			 * grip_scale) * pLatForceMultipliers[2])
+			 * mGripBoost) * 2500.f;
 	}
 }
 
@@ -490,72 +492,73 @@ float SuspensionRacer::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float bo
 {
 	float bt = (mBrakes->data->BRAKES[mAxleIndex] * 1.3558f) * BrakingTorque;
 	float ebt = (mBrakes->data->EBRAKE * 1.3558f) * EBrakingTorque;
-	float dynamic_grip = mSpecs->data->DYNAMIC_GRIP.Pair[mAxleIndex];
-	float static_grip = mSpecs->data->STATIC_GRIP.Pair[mAxleIndex];
+	const float dynamicgrip_spec = mSpecs->data->DYNAMIC_GRIP.Pair[mAxleIndex];
+	const float staticgrip_spec = mSpecs->data->STATIC_GRIP.Pair[mAxleIndex];
 
 	if (mLoad <= 0.f && !mBrakeLocked)
 		mAV = fwd_vel / mRadius;
-	float speed_delta = fwd_vel - mRoadSpeed;
+	float fwd_acc = (fwd_vel - mRoadSpeed) / dT;
 	mRoadSpeed = fwd_vel;
-	float fwd_acc = speed_delta / dT;
-	mLoad = load > 0.f ? load : 0.f;
+
+	//float temp_load = UMath::Max(load, 0.f);
+	mLoad = UMath::Max(load, 0.f);
 	mLateralSpeed = lat_vel;
-	bt *= mBrake;
-	float ebt_add = ebt * mEBrake;
+	//bt *= mBrake;
 	//ebt *= mEBrake;
-	float abs_fwd_vel = fwd_vel < 0.f ? -fwd_vel : fwd_vel;
-	if (abs_fwd_vel < 1.f)
+	float bt_add  = bt * mEBrake;
+	float ebt_add = ebt * mEBrake;
+	float abs_fwd = UMath::Abs(fwd_vel);
+	if (abs_fwd < 1.f)
 	{
 		// when car is nearly stopped, apply brake torque using forward velocity and wheel load
 		float inv_radius = 1.f / mRadius;
-		float stopping_bt  = -(inv_radius * mBrake  * fwd_vel * load);
-		float stopping_ebt = -(inv_radius * mEBrake * fwd_vel * load);
+		float stopping_bt    = -(inv_radius * mBrake  * fwd_vel * load);
+		float stopping_ebt   = -(inv_radius * mEBrake * fwd_vel * load);
+		float r_drive_torque = -(mEBrake * mDriveTorque);
 		if (!mBrakeLocked)
-		{
-			float r_drive_torque = -(mEBrake * mDriveTorque);
-			mDriveTorque += (-(mEBrake * mDriveTorque));
+			mDriveTorque += r_drive_torque;
+		if (!mBrakeLocked)
 			mBrakeTorque += stopping_bt;
-			mBrakeTorque = stopping_ebt + mBrakeTorque;
-		}
+		if (!mBrakeLocked)
+			mBrakeTorque += stopping_ebt;
 	}
 	else
 	{
-		float opp_bt = mAV > 0.f ? -bt : bt;
+		float opp_bt = mAV > 0.f ? -bt_add : bt_add;
 		if (!mBrakeLocked)
 			mBrakeTorque += opp_bt;
 		float opp_ebt = mAV > 0.f ? -ebt_add : ebt_add;
 		if (!mBrakeLocked)
 			mBrakeTorque += opp_ebt;
 	}
-	mSlipAngle = VU0_Atan2(lat_vel, abs_fwd_vel);
-	float slip_speed = mRadius * mAV - fwd_vel;
+	
+	mSlipAngle = VU0_Atan2(lat_vel, abs_fwd);
+	float slip_speed = (mAV * mRadius) - fwd_vel;
 	float slip_ground_friction = 0.f;
 	float dynamic_friction = 1.f;
 	mSlip = slip_speed;
-	float lat_vel2 = lat_vel * lat_vel;
-	float skid_speed = fsqrt(slip_speed * slip_speed + lat_vel2);
+	float skid_speed = fsqrt(slip_speed * slip_speed + lat_vel * lat_vel);
 	float pilot_factor = GetPilotFactor(body_speed);
 	if (skid_speed > FLT_EPSILON && (lat_vel != 0.f || fwd_vel != 0.f))
 	{
-		dynamic_friction = dynamic_grip * mTractionBoost * pilot_factor;
+		dynamic_friction = (mTractionBoost * pilot_factor) * dynamicgrip_spec;
 		slip_ground_friction = (dynamic_friction / skid_speed) * mLoad;
-		float wheel_speed = fsqrt(fwd_vel * fwd_vel + lat_vel2);
-		//float ground_force = mLoad / fsqrt(fwd_vel * fwd_vel + lat_vel2) * dynamic_friction * abs_fwd_vel;
-		//volatile float wheel_load = mLoad;
-		CheckForBrakeLock(mLoad / wheel_speed * abs_fwd_vel * dynamic_friction);
+		float vel_len = fsqrt(fwd_vel * fwd_vel + lat_vel * lat_vel);
+		//float wheel_speed = mLoad / fsqrt(fwd_vel * fwd_vel + lat_vel * lat_vel);
+		float ground_speed = ((mLoad / vel_len) * dynamic_friction) * abs_fwd;
+		CheckForBrakeLock(ground_speed);
 	}
 	if (mTraction < 1.f || mBrakeLocked)
 	{
-		float long_force = slip_speed * slip_ground_friction;
+		float long_force = slip_ground_friction * slip_speed;
 		mLongitudeForce = long_force;
 		mLateralForce = -(slip_ground_friction * lat_vel);
 		// 0.44703 mps = 1 mph
 		const float one_mph = 0.44703f;
 		if (body_speed < one_mph && dynamic_friction > 0.1f)
 		{
-			float inv_friction = 1.f / dynamic_friction;
-			mLateralForce *= inv_friction;
-			mLongitudeForce = long_force * inv_friction;
+			mLateralForce /= dynamic_friction;
+			mLongitudeForce /= dynamic_friction;
 		}
 		long_force = (mBrakeTorque + mDriveTorque) / mRadius;
 		float long_force_clamped = mLongitudeForce;
@@ -576,6 +579,7 @@ float SuspensionRacer::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float bo
 		mBrakeLocked = false;
 		mLongitudeForce = (mDriveTorque + mBrakeTorque) / mRadius;
 		float slip_ang = mSlipAngle;
+		//float temp_load = mLoad;
 		float lat_force = ComputeLateralForce(mLoad, slip_ang < 0.f ? -slip_ang : slip_ang);
 		mLateralForce = lat_force;
 		if (lat_vel > 0.f)
@@ -593,13 +597,13 @@ float SuspensionRacer::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float bo
 	}
 
 	float ellipse_x = mLateralForce * mTractionCircle.x;
-	mLateralForce = ellipse_x;
+	mLateralForce = mLateralForce * mTractionCircle.x;
 	float ellipse_y = mLongitudeForce * mTractionCircle.y;
-	mLongitudeForce = ellipse_y;
-	float wheel_force_length = ellipse_y * ellipse_y + ellipse_x * ellipse_x;
-	wheel_force_length = fsqrt(wheel_force_length);
+	mLongitudeForce = mLongitudeForce * mTractionCircle.y;
+	float wheel_force_length = fsqrt(ellipse_y * ellipse_y + ellipse_x * ellipse_x);
+	//wheel_force_length = fsqrt(wheel_force_length);
 	mTraction = 1.f;
-	float traction_scale = ((mDriftFriction * mTractionBoost) * static_grip) * mLoad * pilot_factor;
+	float traction_scale = ((mDriftFriction * mTractionBoost) * staticgrip_spec) * mLoad * pilot_factor;
 	float tolerated_slip = mMaxSlip;
 	if (!(wheel_force_length > traction_scale) || !(wheel_force_length > 0.001f))
 	{
@@ -612,31 +616,25 @@ float SuspensionRacer::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float bo
 		mTraction = ratio;
 		mLateralForce *= ratio;
 		mLongitudeForce *= ratio;
-		tolerated_slip *= ratio * ratio;
+		tolerated_slip = (ratio * ratio) * tolerated_slip;
 	}
-	float abs_slip_speed = slip_speed < 0.f ? -slip_speed : slip_speed;
-	if (abs_slip_speed > tolerated_slip)
+
+	if (UMath::Abs(slip_speed) > tolerated_slip)
 	{
-		//float abs_slip_speed = slip_speed < 0.f ? -slip_speed : slip_speed;
-		mTraction /= slip_speed < 0.f ? -slip_speed : slip_speed;
+		mTraction /= UMath::Abs(slip_speed);
 		mTraction *= tolerated_slip;
 	}
 
+	// factor surface friction into the tire force
 	Attrib::Gen::simsurface::LayoutStruct* simsurface_data = mSurface.data;
 	mLateralForce *= mSurface.data->LATERAL_GRIP;
 	mLongitudeForce *= mSurface.data->DRIVE_GRIP;
-	if (fwd_vel <= 1.f)
-	{
-		float abs_lat_slip = lat_vel;
-		ABS(abs_lat_slip);
-		if (abs_lat_slip >= 1.f)
-			abs_lat_slip = 1.f;
-		mLateralForce *= abs_lat_slip;
-	}
+	if (fwd_vel > 1.f)
+		mLongitudeForce -= sinf(mSlipAngle * TWO_PI) * (mDragReduction / mSpecs->data->GRIP_SCALE.Pair[mAxleIndex]) * mLateralForce;
 	else
 	{
-		// inline asm to force the intrinsic since the compiler keeps calling sinf instead of using the intrinsic
-		mLongitudeForce -= sinf(mSlipAngle * TWO_PI) * (mDragReduction / mSpecs->data->GRIP_SCALE.Pair[mAxleIndex]) * mLateralForce;
+		float abs_lat_slip = UMath::Min(UMath::Abs(lat_vel), 1.f);
+		mLateralForce *= abs_lat_slip;
 	}
 
 	if (mBrakeLocked)
@@ -645,12 +643,12 @@ float SuspensionRacer::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float bo
 	{
 		if (mTraction < 1.f)
 		{
-			float last_torque = (mBrakeTorque + mDriveTorque - mLongitudeForce * mRadius + mLastTorque) * 0.5f;
+			float last_torque = (((mBrakeTorque + mDriveTorque) - (mLongitudeForce * mRadius)) + mLastTorque) * 0.5f;
 			mLastTorque = last_torque;
-			mAngularAcc = (last_torque - RollingFriction * mSurface.data->ROLLING_RESISTANCE * mAV)
-						/ WheelMomentOfInertia - mTraction * mSlip / (dT * mRadius);
+			mAngularAcc = (last_torque - (RollingFriction * mSurface.data->ROLLING_RESISTANCE) * mAV)
+						/ WheelMomentOfInertia - (mTraction * mSlip) / (dT * mRadius);
 		}
-		mAngularAcc = (fwd_acc / mRadius - mAngularAcc) * mTraction + mAngularAcc;
+		mAngularAcc += ((fwd_acc / mRadius) - mAngularAcc) * mTraction;
 	}
 	mAV += dT * mAngularAcc;
 	CheckSign();

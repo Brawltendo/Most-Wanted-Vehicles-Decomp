@@ -14,9 +14,11 @@ __declspec(align(16)) struct Wheel
     UMath::Vector3 mForce;
     float mAirTime;
     UMath::Vector3 mLocalArm;
-    float compression;
+    float mCompression;
     UMath::Vector3 mWorldArm;
+	int pad;
     UMath::Vector3 mVelocity;
+	int pad2;
     Attrib::Gen::simsurface mSurface;
     float mSurfaceStick;
     void *mIntegral;

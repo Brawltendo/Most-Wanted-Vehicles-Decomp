@@ -185,6 +185,7 @@ public:
 		void UpdateFree(float dT);
 		float UpdateLoaded(float lat_vel, float fwd_vel, float body_speed, float load, float dT);
         
+		int pad[3];
 		float mRadius;
         float mBrake;
         float mEBrake;

@@ -1,3 +1,4 @@
+#pragma once
 #include <math.h>
 
 #define PI 3.14159265f
@@ -21,26 +22,13 @@ float fsqrt(float x)
 namespace UMath
 {
 
-// MATCHING
-/* float InverseLerp(const float val, const float low_end, const float high_end)
+float Abs(const float x)
 {
-	float range = high_end - low_end;
-	if ((range > FLT_EPSILON))
-	{
-		volatile float ramp = (val - low_end) / range;
-		if (ramp < 1.f)
-		{
-			float ramp = ramp > 0.f ? 0.f : ramp;
-			return ramp;
-		}
-		else return 1.f;
-	}
-	else return 0.f;
-} */
+	return x < 0.f ? -x : x;
+}
 
 // MATCHING
 // Returns the smallest of 2 float values
-_forceinline
 float Min(const float a, const float b)
 {
 	return a < b ? a : b;
@@ -48,7 +36,6 @@ float Min(const float a, const float b)
 
 // MATCHING
 // Returns the greatest of 2 float values
-_forceinline
 float Max(const float a, const float b)
 {
 	return a > b ? a : b;
@@ -56,10 +43,23 @@ float Max(const float a, const float b)
 
 // MATCHING
 // Clamps a float value within a defined range
-_forceinline
 float Clamp(const float in, const float min, const float max)
 {
 	return Min(max, Max(in, min));
+}
+
+// MATCHING
+// Returns the interpolant for the input value given a min/max range
+float InverseLerp(const float val, const float low_end, const float high_end)
+{
+	float range = high_end - low_end;
+	// range needs to be a nonzero value to avoid division errors
+	// it also needs to be above zero in order to output a value between 0 and 1
+	if ((range > FLT_EPSILON))
+		// clamp to 0-1 range
+		return Max(0.f, Min((val - low_end) / range, 1.f));
+	else
+		return 0.f;
 }
 
 } // namespace UMath
