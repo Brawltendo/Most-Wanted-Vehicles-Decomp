@@ -8,8 +8,7 @@
 
 class EngineRacer
 {
-
-
+public:
 	int pad[0x6C / 0x4];
 	float mDriveTorque;
 	GearID mGear;
@@ -47,13 +46,25 @@ class EngineRacer
 
 	struct Clutch 
 	{
-		float GetClutchRatio(float dT);
-
+	public:
 		enum State
 		{
 			ENGAGED, ENGAGING, DISENGAGED
-		} mState;
+		};
 
+		Clutch();
+    	/* {
+    	    mState = ENGAGED;
+    	    mTime = 0.f;
+			mEngageTime = 0.f;
+    	} */
+		void Disengage();
+		void Engage(float time);
+		void Reset();
+		float Update(float dT);
+		State GetState();
+
+		State mState;
 		float mTime;
 		float mEngageTime;
 	} mClutch;
