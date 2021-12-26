@@ -7,7 +7,7 @@ void* Attrib::DefaultDataArea(uint32_t bytes)
 	return &gDefaultDataArea;
 }
 
-int16_t Attrib::Private::GetLength(const Collection& collection)
+int Attrib::Collection::GetLength()
 {
-	return collection.Count;
+	return Count;
 }

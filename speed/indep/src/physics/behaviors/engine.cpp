@@ -5,6 +5,28 @@
 
 
 // MATCHING
+float EngineRacer::GetBrakingTorque(float engine_torque, float rpm)
+{
+	uint32_t numpts = mEngineInfo.Num_ENGINE_BRAKING();
+	if (numpts > 1)
+	{
+		float ratio;
+		float rpm_min = mEngineInfo.IDLE();
+		float rpm_max = mEngineInfo.MAX_RPM();
+		float rpm_clamped = UMath::Clamp_(rpm, mEngineInfo.IDLE(), mEngineInfo.RED_LINE());
+		uint32_t index = UMath::InterpolateIndex(numpts - 1, rpm_clamped, rpm_min, rpm_max, ratio);
+
+		float base = mEngineInfo.ENGINE_BRAKING(index);
+		uint32_t second_index = index + 1;
+		float step = mEngineInfo.ENGINE_BRAKING(UMath::Min(second_index, numpts - 1));
+		float load_pct = (step - base) * ratio + base;
+		return -(UMath::Clamp_(load_pct, 0.f, 1.f) * engine_torque);
+	}
+	else
+		return -(engine_torque * mEngineInfo.ENGINE_BRAKING(0));
+}
+
+// MATCHING
 EngineRacer::Clutch::Clutch()
 {
     mState = ENGAGED;

@@ -2,6 +2,7 @@
 
 import argparse
 import os
+import re
 
 # add parser arguments
 parser = argparse.ArgumentParser()
@@ -85,9 +86,14 @@ with open(os.path.dirname(os.path.realpath(__file__)) + '\\' + args.i, 'w', enco
 				for inst in jmpInsts:
 					# strip whitespace and check for equality to avoid duplicate output
 					if inst == instruction.strip():
-						jmpAddr = int(instData, 16)
+						# check for valid int value
+						numIsValid = True
+						try:
+							jmpAddr = int(instData, 16)
+						except:
+							numIsValid = False
 						# make sure the address is within the function boundaries
-						if jmpAddr >= baseAddr or jmpAddr <= endAddr:
+						if (jmpAddr >= baseAddr or jmpAddr <= endAddr) and numIsValid:
 							newLine.append(format(jmpAddr - baseAddr, '08X'))
 							hasJmpInst = True
 

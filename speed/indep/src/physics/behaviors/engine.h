@@ -9,6 +9,8 @@
 class EngineRacer
 {
 public:
+	float GetBrakingTorque(float engine_torque, float rpm);
+
 	int pad[0x6C / 0x4];
 	float mDriveTorque;
 	GearID mGear;
@@ -53,11 +55,6 @@ public:
 		};
 
 		Clutch();
-    	/* {
-    	    mState = ENGAGED;
-    	    mTime = 0.f;
-			mEngageTime = 0.f;
-    	} */
 		void Disengage();
 		void Engage(float time);
 		void Reset();
