@@ -29,6 +29,48 @@
 } */
 
 // MATCHING
+uint32_t EngineRacer::GetNumGearRatios()
+{
+	return mTrannyInfo.Num_GEAR_RATIO();
+}
+
+// MATCHING
+float EngineRacer::GetGearRatio(uint32_t idx)
+{
+	return mTrannyInfo.GEAR_RATIO(idx);
+}
+
+// MATCHING
+float EngineRacer::GetGearEfficiency(uint32_t idx)
+{
+	return mTrannyInfo.GEAR_EFFICIENCY(idx);
+}
+
+// MATCHING
+float EngineRacer::GetFinalGear()
+{
+	return mTrannyInfo.FINAL_GEAR();
+}
+
+// MATCHING
+float EngineRacer::GetRatioChange(uint32_t from, uint32_t to)
+{
+	float ratio1 = mTrannyInfo.GEAR_RATIO(from);
+	float ratio2 = mTrannyInfo.GEAR_RATIO(to);
+
+	if (ratio1 > 0.f && ratio2 > FLT_EPSILON)
+		return ratio1 / ratio2;
+	else
+		return 0.f;
+}
+
+// MATCHING
+float EngineRacer::GetShiftDelay(uint32_t gear)
+{
+	return mTrannyInfo.SHIFT_SPEED() * mTrannyInfo.GEAR_RATIO(gear);
+}
+
+// MATCHING
 bool EngineRacer::RearWheelDrive()
 {
 	return mTrannyInfo.TORQUE_SPLIT() < 1.f;
@@ -53,7 +95,7 @@ void EngineRacer::LimitFreeWheels(float w)
 					continue;
 			}
 			else if (!RearWheelDrive())
-					continue;
+				continue;
 			
 			float ww = mSuspension->GetWheelAngularVelocity(i);
 			/* if (ww * w < 0.f)
@@ -133,6 +175,44 @@ float EngineRacer::GetDifferentialAngularVelocity(bool locked)
 	}
 
 	return into_gearbox;
+}
+
+// MATCHING
+void EngineRacer::SetDifferentialAngularVelocity(float w)
+{
+	float current = GetDifferentialAngularVelocity(0);
+	float diff = w - current;
+	IVehicle* vehicle = (IVehicle*)(pad[0x38 / 0x4]);
+	float speed = MPS2MPH(vehicle->GetAbsoluteSpeed());
+	int lockdiff = speed < 40.f;
+	if (RearWheelDrive())
+	{
+		if (!mSuspension->IsWheelOnGround(2) && !mSuspension->IsWheelOnGround(3))
+			lockdiff = 1;
+
+		float w1 = mSuspension->GetWheelAngularVelocity(2);
+		float w2 = mSuspension->GetWheelAngularVelocity(3);
+		if (lockdiff)
+			w2 = w1 = (w1 + w2) * 0.5f;
+
+		mSuspension->SetWheelAngularVelocity(2, w1 + diff);
+		mSuspension->SetWheelAngularVelocity(3, w2 + diff);
+	}
+
+	lockdiff = speed < 40.f;
+	if (FrontWheelDrive())
+	{
+		if (!mSuspension->IsWheelOnGround(0) && !mSuspension->IsWheelOnGround(1))
+			lockdiff = 1;
+
+		float w1 = mSuspension->GetWheelAngularVelocity(0);
+		float w2 = mSuspension->GetWheelAngularVelocity(1);
+		if (lockdiff)
+			w2 = w1 = (w1 + w2) * 0.5f;
+
+		mSuspension->SetWheelAngularVelocity(0, w1 + diff);
+		mSuspension->SetWheelAngularVelocity(1, w2 + diff);
+	}
 }
 
 // MATCHING

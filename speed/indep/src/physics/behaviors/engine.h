@@ -7,18 +7,26 @@
 #include "interfaces/simables/iengine.h"
 #include "interfaces/simables/itaskable.h"
 #include "interfaces/simables/itransmission.h"
+#include "interfaces/simables/ivehicle.h"
 #include "physics/physicstypes.h"
 
-class EngineRacer : Sim::ITaskable, ITransmission, IEngine 
+class EngineRacer : Sim::ITaskable, IVehicle, ITransmission, IEngine 
 {
 private:
 	float GetBrakingTorque(float engine_torque, float rpm);
+	uint32_t GetNumGearRatios();
+	float GetGearRatio(uint32_t idx);
+	float GetGearEfficiency(uint32_t idx);
+	float GetFinalGear();
+	float GetRatioChange(uint32_t from, uint32_t to);
+	float GetShiftDelay(uint32_t gear);
 	bool RearWheelDrive();
 	bool FrontWheelDrive();
 	float GetDifferentialAngularVelocity(bool locked);
+	void SetDifferentialAngularVelocity(float w);
 	void LimitFreeWheels(float w);
 
-	int pad[0x68 / 0x4];
+	int pad[0x64 / 0x4];
 	float mDriveTorque;
 	GearID mGear;
 	float mGearShiftTimer;

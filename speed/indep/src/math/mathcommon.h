@@ -19,9 +19,16 @@ float fsqrt(float x)
 	return sqrtf(x);
 }
 
+// MATCHING
+float MPS2MPH(float _mps_)
+{
+	return _mps_ * 2.23699f;
+}
+
 namespace UMath
 {
 
+// MATCHING
 float Abs(const float a)
 {
 	return a < 0.f ? -a : a;

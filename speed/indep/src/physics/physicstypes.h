@@ -11,6 +11,23 @@ struct AxlePair
     };
 };
 
+enum DriverClass
+{
+  DRIVER_HUMAN,
+  DRIVER_TRAFFIC,
+  DRIVER_COP,
+  DRIVER_RACER,
+  DRIVER_NONE,
+  DRIVER_NIS,
+  DRIVER_REMOTE
+};
+
+enum DriverStyle
+{
+	STYLE_RACING,
+	STYLE_DRAG
+};
+
 enum GearID
 {
 	G_REVERSE,
