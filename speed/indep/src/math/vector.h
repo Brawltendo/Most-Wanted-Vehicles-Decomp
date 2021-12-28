@@ -161,6 +161,14 @@ struct Vector3
         return v;
     }
 
+	Vector3& operator+=(const Vector3& b)
+    {
+        x += b.x;
+        y += b.y;
+        z += b.z;
+        return *this;
+    }
+
     Vector3 operator-(const Vector3& b)
     {
         Vector3 v;
@@ -223,6 +231,16 @@ struct Vector3
         v.z = b;
         return v;
     }
+
+	Vector3& operator=(const Vector3& b) 
+	{
+	    x = b.x;
+		y = b.y;
+		z = b.z;
+	    return *this;
+	}
+
+	Vector3& Vector3::operator=(const struct Vector4& b);
 
 };
 
@@ -362,7 +380,7 @@ struct Vector4
         return v;
     }
 
-	Vector4& operator=(const Vector3 &b) 
+	Vector4& operator=(const Vector3& b) 
 	{
 	    x = b.x;
 		y = b.y;
@@ -371,5 +389,13 @@ struct Vector4
 	}
 
 };
+
+Vector3& Vector3::operator=(const Vector4& b) 
+{
+    x = b.x;
+	y = b.y;
+	z = b.z;
+    return *this;
+}
 
 }

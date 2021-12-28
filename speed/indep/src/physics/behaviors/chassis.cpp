@@ -1,7 +1,9 @@
 #include "physics/behaviors/chassis.h"
 
+#include "interfaces/simables/irigidbody.h"
 #include "math/bmath.h"
 #include "math/mathcommon.h"
+#include "math/matrix.h"
 
 extern float Sim_GetTime();
 extern void ScaleVector(UMath::Vector3* in, const float scale, UMath::Vector3& dest);
@@ -267,6 +269,38 @@ extern UMath::Vector3* _cdecl TransformVector(const UMath::Vector3& v, const UMa
 } */
 
 // MATCHING
+// Calculates artificial steering for when the car is touching a wall
+void SuspensionRacer::DoWallSteer(Chassis::State& state)
+{
+	float wall = mSteering.WallNoseTurn;
+	// nose turn is applied when the car is perpendicular to the wall
+	// allows the player to easily turn their car away from the wall after a head-on crash without reversing
+	if (wall != 0.f && mNumWheelsOnGround > 2 && state.gas_input > 0.f)
+	{
+		float dW = state.steer_input * state.gas_input * 0.125f;
+		if (wall * dW < 0.f)
+			return;
+		UMath::Vector3 chg(0.f, UMath::Abs(wall) * dW, 0.f);
+		UMath::Rotate(chg, state.matrix, chg);
+		chg += state.angular_vel;
+		mRB->SetAngularVelocity(chg);
+	}
+
+	wall = mSteering.WallSideTurn;
+	float dW = state.steer_input * state.gas_input;
+	// side turn is only applied when in reverse and if touching a wall parallel to the car
+	// it helps the player move their car away from the wall when backing up
+	if (dW * wall > 0.f && mNumWheelsOnGround > 2 && !state.gear)
+	{
+		dW *= -0.125f;
+		UMath::Vector3 chg(0.f, UMath::Abs(wall) * dW, 0.f);
+		UMath::Rotate(chg, state.matrix, chg);
+		chg += state.angular_vel;
+		mRB->SetAngularVelocity(chg);
+	}
+}
+
+// MATCHING
 /* float SuspensionRacer::DoHumanSteering(const Chassis::State& state)
 {
 	float input = state.steer_input;
@@ -348,6 +382,7 @@ static Table* LoadSensitivityTable[] =
 {
 	&ZeroDegree, &TwoDegree, &FourDegree, &SixDegree, &EightDegree, &TenDegree, &TwelveDegree
 };
+// I have no idea why these are set to -2 since when they're actually used in the function it acts like 1.0f
 static int LatForceMultipliers[] = { -2, -2, -2, -2 };
 static int* pLatForceMultipliers = LatForceMultipliers;
 float SuspensionRacer::Tire::ComputeLateralForce(float load, float slip_angle)

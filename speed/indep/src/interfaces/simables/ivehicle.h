@@ -7,8 +7,8 @@ class IVehicle
 {
 public:
 	virtual void _PADDING();
-    virtual int GetSimable() const;
-    virtual int GetSimable();
+    virtual void* GetSimable() const;
+    virtual void* GetSimable();
     virtual UMath::Vector3& GetPosition();
     virtual void SetBehaviorOverride(uint32_t, uint32_t);
     virtual void RemoveBehaviorOverride(uint32_t);

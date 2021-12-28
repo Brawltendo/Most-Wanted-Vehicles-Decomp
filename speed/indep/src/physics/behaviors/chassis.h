@@ -119,6 +119,7 @@ public:
 	void DoWheelForces(const Chassis::State& state);
 	float CalculateMaxSteering(const Chassis::State& state, ISteeringWheel::SteeringType steer_type);
 	float CalculateSteeringSpeed(const Chassis::State& state);
+	void DoWallSteer(Chassis::State& state);
 	float DoHumanSteering(const Chassis::State& state);
 
 	int pad[0x6C / 0x4];
@@ -131,9 +132,9 @@ public:
     Attrib::Gen::brakes mBrakeInfo;
     Attrib::Gen::chassis mSuspensionInfo;
     Attrib::Gen::transmission mTransInfo;
-    struct /* RBVehicle:: */IRigidBody *mRB;
-    struct /* RBVehicle:: */ICollisionBody *mCollisionBody;
-    struct /* EngineRacer:: */ITransmission *mTransmission;
+    struct IRigidBody *mRB;
+    struct ICollisionBody *mCollisionBody;
+    struct ITransmission *mTransmission;
     struct IHumanAI *mHumanAI;
     float mGameBreaker;
     uint32_t mNumWheelsOnGround;
