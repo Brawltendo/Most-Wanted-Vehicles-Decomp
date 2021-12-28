@@ -69,6 +69,23 @@ unsigned int Max(const unsigned int a, const unsigned int b)
 	return a > b ? a : b;
 }
 
+// Clamps a float value within the range [0,amax]
+float ClampAboveZero(const float a, const float amax)
+{
+	if (a * amax > 0.f)
+		//return a;
+	{
+		if (a > 0.f)
+		{
+			if (!(a < amax))
+				return amax;
+		}
+		else if (!(a > amax))
+			return amax;
+	}
+	return a;
+}
+
 // MATCHING
 // Clamps a float value within the range [-alimit,alimit]
 float Bound(const float a, const float alimit)

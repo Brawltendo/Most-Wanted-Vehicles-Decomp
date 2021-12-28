@@ -4,14 +4,21 @@
 #include "generated/attribsys/classes/tires.h"
 #include "generated/attribsys/classes/transmission.h"
 
+#include "interfaces/simables/iengine.h"
+#include "interfaces/simables/itaskable.h"
+#include "interfaces/simables/itransmission.h"
 #include "physics/physicstypes.h"
 
-class EngineRacer
+class EngineRacer : Sim::ITaskable, ITransmission, IEngine 
 {
-public:
+private:
 	float GetBrakingTorque(float engine_torque, float rpm);
+	bool RearWheelDrive();
+	bool FrontWheelDrive();
+	float GetDifferentialAngularVelocity(bool locked);
+	void LimitFreeWheels(float w);
 
-	int pad[0x6C / 0x4];
+	int pad[0x68 / 0x4];
 	float mDriveTorque;
 	GearID mGear;
 	float mGearShiftTimer;
@@ -33,7 +40,9 @@ public:
 	/* struct IInput* mIInput;
 	struct ISuspension* mSuspension;
 	struct ICheater* mCheater; */
-	int pad58[3];
+	int mIInput;
+	struct ISuspension* mSuspension;
+	int mCheater;
 	Attrib::Gen::nos mNOSInfo;
 	Attrib::Gen::induction mInductionInfo;
 	Attrib::Gen::engine mEngineInfo;
@@ -69,5 +78,11 @@ public:
 	float mBlown;
 	float mSabotage;
 	int gap158;
+
+public:
+	// interface functions will go here
 };
-//const int offset = offsetof(EngineRacer, mInductionInfo);
+//const int offset = offsetof(EngineRacer, mTrannyInfo);
+
+float Engine_SmoothRPM(bool is_shifting, GearID gear, float dT, float old_rpm, float new_rpm, float engine_inertia);
+
