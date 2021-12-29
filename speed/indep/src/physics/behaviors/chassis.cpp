@@ -32,7 +32,7 @@ extern UMath::Vector3* _cdecl TransformVector(const UMath::Vector3& v, const UMa
 } */
 
 // MATCHING
-/* void SuspensionRacer::ComputeAckerman(const float steering, const Chassis::State& state, UMath::Vector4& left, UMath::Vector4& right)
+void SuspensionRacer::ComputeAckerman(const float steering, const Chassis::State& state, UMath::Vector4& left, UMath::Vector4& right)
 {
 	UMath::Vector3 steer_vec;
 	int going_right = true;
@@ -79,7 +79,7 @@ extern UMath::Vector3* _cdecl TransformVector(const UMath::Vector3& v, const UMa
 	steer_vec.x = sinf(steer_left);
 	TransformVector(steer_vec, state.matrix, steer_vec);
 	left = UMath::Vector4(steer_vec, steer_left);
-} */
+}
 
 // NOT MATCHING
 // there are very slight differences in the instruction order detailed below
@@ -301,7 +301,7 @@ void SuspensionRacer::DoWallSteer(Chassis::State& state)
 }
 
 // MATCHING
-/* float SuspensionRacer::DoHumanSteering(const Chassis::State& state)
+float SuspensionRacer::DoHumanSteering(const Chassis::State& state)
 {
 	float input = state.steer_input;
 	float prev_steering = mSteering.Previous;
@@ -309,7 +309,7 @@ void SuspensionRacer::DoWallSteer(Chassis::State& state)
 	if (prev_steering >= 180.f)
 		prev_steering -= 360.f;
 
-	float steering_coeff = mTireInfo.data->STEERING;
+	float steering_coeff = mTireInfo.STEERING();
 	ISteeringWheel::SteeringType steer_type = ISteeringWheel::SteeringType::kGamePad;
 
 	// LocalPlayer::IPlayer* PhysicsObject::GetPlayer()
@@ -362,7 +362,40 @@ void SuspensionRacer::DoWallSteer(Chassis::State& state)
 
 	mSteering.InputAverage.Record(mSteering.LastInput, Sim_GetTime());
 	return new_steer / 360.f;
-} */
+}
+
+// can't tell if this function is matching or not since it's inlined in the PC version and I haven't found the uninlined function
+// it's generating the right code in DoSteering though so it probably matches
+float SuspensionRacer::DoAISteering(Chassis::State& state)
+{
+	mSteering.Maximum = 45.f;
+	if (state.driver_style != STYLE_DRAG)
+		mSteering.Maximum = mTireInfo.STEERING() * 45.f;
+
+	return DEG2ANGLE(state.steer_input * mSteering.Maximum);
+}
+
+// MATCHING
+void SuspensionRacer::DoSteering(Chassis::State& state, UMath::Vector3& right, UMath::Vector3& left)
+{
+	float truesteer;
+	UMath::Vector4 r4;
+	UMath::Vector4 l4;
+
+	// I don't know exactly what this vfunction call is,
+	// but it's safe to assume it's checking to see if the current vehicle is player controlled
+	if (mHumanAI && (*(bool (__fastcall **)(int*))((*(int*)mHumanAI) + 0x8))((int*)mHumanAI))
+		truesteer = DoHumanSteering(state);
+	else
+		truesteer = DoAISteering(state);
+	
+	ComputeAckerman(truesteer, state, l4, r4);
+	right = Vector4To3(r4);
+	left  = Vector4To3(l4);
+	mSteering.Wheels[0] = l4.w;
+	mSteering.Wheels[1] = r4.w;
+	DoWallSteer(state);
+}
 
 static float ZeroDegreeTable[6]  = { 0.f };
 static float TwoDegreeTable[]    = { 0.f, 1.2f, 2.3f, 3.f, 3.f, 2.8f };
@@ -396,7 +429,7 @@ float SuspensionRacer::Tire::ComputeLateralForce(float load, float slip_angle)
 	
 	if (slip_angle_table >= 6)
 	{
-		float grip_scale = mSpecs->data->GRIP_SCALE.Pair[mAxleIndex];
+		float grip_scale = mSpecs->GRIP_SCALE().Pair[mAxleIndex];
 		return (((LoadSensitivityTable[6]->GetValue(load)
 			 * pLatForceMultipliers[2]) * mGripBoost) * grip_scale) * 2500.f;
 	}
@@ -404,7 +437,7 @@ float SuspensionRacer::Tire::ComputeLateralForce(float load, float slip_angle)
 	{
 		float low  = LoadSensitivityTable[slip_angle_table]->GetValue(load);
 		float high = LoadSensitivityTable[slip_angle_table + 1]->GetValue(load);
-		float grip_scale = mSpecs->data->GRIP_SCALE.Pair[mAxleIndex];
+		float grip_scale = mSpecs->GRIP_SCALE().Pair[mAxleIndex];
 		float delta = angle - slip_angle_table;
 		return ((((delta * (high - low) + low)
 			 * grip_scale) * pLatForceMultipliers[2])
@@ -527,8 +560,8 @@ float SuspensionRacer::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float bo
 {
 	float bt = (mBrakes->data->BRAKES[mAxleIndex] * 1.3558f) * BrakingTorque;
 	float ebt = (mBrakes->data->EBRAKE * 1.3558f) * EBrakingTorque;
-	const float dynamicgrip_spec = mSpecs->data->DYNAMIC_GRIP.Pair[mAxleIndex];
-	const float staticgrip_spec = mSpecs->data->STATIC_GRIP.Pair[mAxleIndex];
+	const float dynamicgrip_spec = mSpecs->DYNAMIC_GRIP().Pair[mAxleIndex];
+	const float staticgrip_spec = mSpecs->STATIC_GRIP().Pair[mAxleIndex];
 
 	if (mLoad <= 0.f && !mBrakeLocked)
 		mAV = fwd_vel / mRadius;
@@ -665,7 +698,7 @@ float SuspensionRacer::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float bo
 	mLateralForce *= mSurface.data->LATERAL_GRIP;
 	mLongitudeForce *= mSurface.data->DRIVE_GRIP;
 	if (fwd_vel > 1.f)
-		mLongitudeForce -= sinf(mSlipAngle * TWO_PI) * (mDragReduction / mSpecs->data->GRIP_SCALE.Pair[mAxleIndex]) * mLateralForce;
+		mLongitudeForce -= sinf(mSlipAngle * TWO_PI) * (mDragReduction / mSpecs->GRIP_SCALE().Pair[mAxleIndex]) * mLateralForce;
 	else
 	{
 		float abs_lat_slip = UMath::Min(UMath::Abs(lat_vel), 1.f);

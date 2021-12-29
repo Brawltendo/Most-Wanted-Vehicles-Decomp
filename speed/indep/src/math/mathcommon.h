@@ -20,9 +20,21 @@ float fsqrt(float x)
 }
 
 // MATCHING
-float MPS2MPH(float _mps_)
+float MPS2MPH(const float _mps_)
 {
 	return _mps_ * 2.23699f;
+}
+
+// MATCHING
+float DEG2ANGLE(const float _deg_)
+{
+	return _deg_ / 360.f;
+}
+
+// MATCHING
+float ANGLE2DEG(const float _arc_)
+{
+	return _arc_ * 360.f;
 }
 
 namespace UMath

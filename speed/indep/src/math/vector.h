@@ -232,14 +232,6 @@ struct Vector3
         return v;
     }
 
-	Vector3& operator=(const Vector3& b) 
-	{
-	    x = b.x;
-		y = b.y;
-		z = b.z;
-	    return *this;
-	}
-
 	Vector3& Vector3::operator=(const struct Vector4& b);
 
 };
@@ -259,10 +251,10 @@ struct Vector4
 
     Vector4()
     {
-        x = 0.f;
+        /* x = 0.f;
         y = 0.f;
         z = 0.f;
-        w = 0.f;
+        w = 0.f; */
     }
 
     Vector4(const float in)
@@ -396,6 +388,11 @@ Vector3& Vector3::operator=(const Vector4& b)
 	y = b.y;
 	z = b.z;
     return *this;
+}
+
+Vector3& Vector4To3(Vector4& c4)
+{
+	return (Vector3&)c4;
 }
 
 }

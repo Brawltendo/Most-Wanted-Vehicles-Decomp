@@ -121,6 +121,8 @@ public:
 	float CalculateSteeringSpeed(const Chassis::State& state);
 	void DoWallSteer(Chassis::State& state);
 	float DoHumanSteering(const Chassis::State& state);
+	float DoAISteering(Chassis::State& state);
+	void DoSteering(Chassis::State& state, UMath::Vector3& right, UMath::Vector3& left);
 
 	int pad[0x6C / 0x4];
 	Attrib::Gen::chassis mChassisInfo;
