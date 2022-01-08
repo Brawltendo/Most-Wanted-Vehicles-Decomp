@@ -1,3 +1,4 @@
+#pragma once
 #include "generated/attribsys/classes/chassis.h"
 #include "generated/attribsys/classes/engine.h"
 #include "generated/attribsys/classes/induction.h"

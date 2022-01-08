@@ -29,7 +29,7 @@ struct transmission : Instance
 		if (index < lp->_Array_GEAR_RATIO.GetLength())
 			return lp->GEAR_RATIO[index];
 		else
-			return *(float*)DefaultDataArea(4);
+			return *(float*)DefaultDataArea(sizeof(float));
 	}
 	unsigned int Num_GEAR_RATIO()
 	{
@@ -42,7 +42,7 @@ struct transmission : Instance
 		if (index < lp->_Array_DIFFERENTIAL.GetLength())
 			return lp->DIFFERENTIAL[index];
 		else
-			return *(float*)DefaultDataArea(4);
+			return *(float*)DefaultDataArea(sizeof(float));
 	}
 	unsigned int Num_DIFFERENTIAL()
 	{
@@ -55,7 +55,7 @@ struct transmission : Instance
 		if (index < lp->_Array_GEAR_EFFICIENCY.GetLength())
 			return lp->GEAR_EFFICIENCY[index];
 		else
-			return *(float*)DefaultDataArea(4);
+			return *(float*)DefaultDataArea(sizeof(float));
 	}
 	unsigned int Num_GEAR_EFFICIENCY()
 	{

@@ -268,7 +268,7 @@ float EngineRacer::Clutch::Update(float dT)
 		case ENGAGED:
 			return 1.f;
 		case ENGAGING:
-			return 1.f - UMath::InverseLerp(mTime, 0.f, mEngageTime) * 0.75f;
+			return 1.f - UMath::Ramp(mTime, 0.f, mEngageTime) * 0.75f;
 		case DISENGAGED:
 			return 0.25f;
 		default:

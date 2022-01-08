@@ -27,7 +27,7 @@ struct engine : Instance
 		if (index < lp->_Array_TORQUE.GetLength())
 			return lp->TORQUE[index];
 		else
-			return *(float*)DefaultDataArea(4);
+			return *(float*)DefaultDataArea(sizeof(float));
 	}
 	unsigned int Num_TORQUE()
 	{
@@ -40,7 +40,7 @@ struct engine : Instance
 		if (index < lp->_Array_SPEED_LIMITER.GetLength())
 			return lp->SPEED_LIMITER[index];
 		else
-			return *(float*)DefaultDataArea(4);
+			return *(float*)DefaultDataArea(sizeof(float));
 	}
 	unsigned int Num_SPEED_LIMITER()
 	{
@@ -53,7 +53,7 @@ struct engine : Instance
 		if (index < lp->_Array_ENGINE_BRAKING.GetLength())
 			return lp->ENGINE_BRAKING[index];
 		else
-			return *(float*)DefaultDataArea(4);
+			return *(float*)DefaultDataArea(sizeof(float));
 	}
 	unsigned int Num_ENGINE_BRAKING()
 	{

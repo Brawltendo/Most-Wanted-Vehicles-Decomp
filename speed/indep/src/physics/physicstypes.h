@@ -9,6 +9,9 @@ struct AxlePair
         };
         float Pair[2];
     };
+
+	float At(int index) { return Pair[index]; }
+	
 };
 
 enum DriverClass

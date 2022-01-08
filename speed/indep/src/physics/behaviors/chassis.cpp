@@ -1,9 +1,12 @@
 #include "physics/behaviors/chassis.h"
 
-#include "interfaces/simables/irigidbody.h"
+//#include "interfaces/simables/irigidbody.h"
+#include "interfaces/simables/isimable.h"
+#include "interfaces/simables/itransmission.h"
 #include "math/bmath.h"
 #include "math/mathcommon.h"
 #include "math/matrix.h"
+#include "physics/physicsinfo.h"
 
 extern float Sim_GetTime();
 extern void ScaleVector(UMath::Vector3* in, const float scale, UMath::Vector3& dest);
@@ -32,12 +35,126 @@ extern UMath::Vector3* _cdecl TransformVector(const UMath::Vector3& v, const UMa
 } */
 
 // MATCHING
+float SuspensionRacer::ComputeMaxSlip(const Chassis::State& state)
+{
+	float ramp = UMath::Ramp(state.speed, 10.f, 71.f);
+	float result = ramp + 0.5f;
+	if (state.gear == G_REVERSE)
+		result = 71.f;
+	return result;
+}
+
+static float AeroDropOff = 0.5f;
+static float AeroDropOffMin = 0.4f;
+static float OffThrottleDragFactor = 2.f;
+static float OffThrottleDragCenterHeight = -0.1f;
+void SuspensionRacer::DoAerodynamics(const Chassis::State& state, float drag_pct, float aero_pct, float aero_front_z, float aero_rear_z, const Physics::Tunings& tunings)
+{
+	// eventually I'll set up proper inheritance for this class...
+	IRigidBody* irb = ((ISimable*)pad[0x30 / 0x4])->GetRigidBody();
+	if (drag_pct > 0.f)
+	{
+		const float dragcoef_spec = mChassisInfo.DRAG_COEFFICIENT();
+		float drag = (dragcoef_spec * state.speed * drag_pct)
+				   * ((OffThrottleDragFactor - 1.f) * (1.f - state.gas_input) + 1.f);
+		if (&tunings)
+			drag *= tunings.aerodynamicsTuning * 0.25f + 1.f;
+		
+		UMath::Vector3 drag_vector(state.linear_vel);
+		UMath::Vector3 drag_center(state.cog);
+		drag_vector *= -drag;
+
+		if (state.ground_effect >= 0.5f)
+			drag_center.y += (1.f - state.gas_input) * OffThrottleDragCenterHeight;
+
+		UMath::RotateTranslate(drag_center, state.matrix, drag_center);
+		irb->ResolveForceAtPoint(drag_vector, drag_center);
+	}
+
+	if (aero_pct > 0.f)
+	{
+		
+		volatile float upness = UMath::Max(state.GetUpVector().y, 0.f);
+		// when 2 or more wheels are on the ground, don't scale down the downforce
+		if (state.ground_effect >= 0.5f)
+			upness = 1.f;
+		
+		// in reverse, the car's forward vector is used as the movement direction
+		UMath::Vector3 movement_dir = state.GetForwardVector();
+		if (state.speed > 0.0001f)
+		{
+			movement_dir = state.linear_vel;
+			float inv_speed = 1.f / state.speed;
+			UMath::Scale(movement_dir, inv_speed, movement_dir);
+		}
+
+		float forwardness = UMath::Max(UMath::Dot(movement_dir, state.GetForwardVector()), 0.f);
+		float drop_off = UMath::Max(AeroDropOffMin, powf(forwardness, AeroDropOff));
+		float downforce = Physics::Info::AerodynamicDownforce(mChassisInfo, state.speed) * drop_off * upness * aero_pct;
+		// lower downforce when car is in air
+		if (state.ground_effect == 0.f)
+			downforce *= 0.8f;
+		if (&tunings)
+			downforce *= tunings.aerodynamicsTuning * 0.25f + 1.f;
+		
+		if (downforce > 0.f)
+		{
+			UMath::Vector3 aero_center(state.cog);
+			// when at least 1 wheel is grounded, change the downforce forward position based on the aero CG and axle positions
+			if (state.ground_effect != 0.f)
+				aero_center.z = (mChassisInfo.AERO_CG() * 0.01f) * (aero_front_z - aero_rear_z) + aero_rear_z;
+
+			UMath::Vector3 force(0.f, -downforce, 0.f);
+			UMath::RotateTranslate(aero_center, state.matrix, aero_center);
+			UMath::Rotate(force, state.matrix, force);
+			irb->ResolveForceAtPoint(force, aero_center);
+		}
+	}
+}
+
+float GripVsSpeed[] = { 0.833f, 0.958f, 1.008f, 1.0167f, 1.033f, 1.033f, 1.033f, 1.0167f, 1.f, 1.f };
+Table GripRangeTable(10, 0.f, 1.f, 9.f, GripVsSpeed);
+// MATCHING
+float SuspensionRacer::ComputeLateralGripScale(const Chassis::State& state)
+{
+	// lateral grip is tripled when in a drag race
+	if (state.driver_style == STYLE_DRAG)
+		return 3.f;
+	else
+	{
+		float ratio = UMath::Ramp(state.speed, 0.f, MPH2MPS(85.f));
+		return GripRangeTable.GetValue(ratio) * 1.2f;
+	}
+}
+
+float TractionVsSpeed[] = { 0.90899998f, 1.045f, 1.09f, 1.09f, 1.09f, 1.09f, 1.09f, 1.045f, 1.f, 1.f };
+Table TractionRangeTable(10, 0.f, 1.f, 9.f, TractionVsSpeed);
+// MATCHING
+float SuspensionRacer::ComputeTractionScale(const Chassis::State& state)
+{
+	float result;
+	if (state.driver_style == STYLE_DRAG)
+		result = 1.1f;
+	else
+	{
+		float ratio = UMath::Ramp(state.speed, 0.f, MPH2MPS(85.f));
+		result = TractionRangeTable.GetValue(ratio) * 1.1f;
+	}
+
+	// traction is doubled when in reverse
+	if (state.gear == G_REVERSE)
+		result = 2.f;
+
+	return result;
+}
+
+// MATCHING
 void SuspensionRacer::ComputeAckerman(const float steering, const Chassis::State& state, UMath::Vector4& left, UMath::Vector4& right)
 {
 	UMath::Vector3 steer_vec;
 	int going_right = true;
-	float wheel_base = mChassisInfo.data->WHEEL_BASE;
-	float track_width_front = mChassisInfo.data->TRACK_WIDTH[0];
+	float wheel_base = mChassisInfo.WHEEL_BASE();
+	float track_width_front = mChassisInfo.TRACK_WIDTH().At(0);
 	float steering_angle_radians = steering * TWO_PI;
 
 	if (steering_angle_radians > PI)
@@ -270,7 +387,7 @@ void SuspensionRacer::ComputeAckerman(const float steering, const Chassis::State
 
 // MATCHING
 // Calculates artificial steering for when the car is touching a wall
-void SuspensionRacer::DoWallSteer(Chassis::State& state)
+/* void SuspensionRacer::DoWallSteer(Chassis::State& state)
 {
 	float wall = mSteering.WallNoseTurn;
 	// nose turn is applied when the car is perpendicular to the wall
@@ -521,12 +638,12 @@ void SuspensionRacer::Tire::CheckSign()
 	else
 		mLastSign = WAS_ZERO;
 }
-
+ */
 static float WheelMomentOfInertia = 10.f;
 // MATCHING
 // NOTE: Only matches when the functions that it calls are uncommented, since it needs to know the calling convention
 // Updates forces for an unloaded/airborne tire
-void SuspensionRacer::Tire::UpdateFree(float dT)
+/* void SuspensionRacer::Tire::UpdateFree(float dT)
 {
 	mLoad = 0.f;
 	mSlip = 0.f;
@@ -722,7 +839,7 @@ float SuspensionRacer::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float bo
 	CheckSign();
 	return mLateralForce;
 }
-
+ */
 static float LowSpeedSpeed = 0.f;
 static float HighSpeedSpeed = 30.f;
 static float MaxYawBonus = 0.35f;
@@ -745,3 +862,156 @@ static float YawAngleThreshold = 20.f;
 		bonus = MaxYawBonus;
 	return abs_grade + bonus;
 } */
+
+// stack frame is off in this function for some reason and I can't get it it to match up
+// it's also supposed to move ecx into esi but it's not doing that either
+// everything else matches but it won't actually line up till I can get past the stack memes
+void SuspensionRacer::Differential::CalcSplit(bool locked)
+{
+	if (has_traction[0] && has_traction[1] && !locked && !(factor <= 0.f))
+	{
+		float inv_bias = 1.f - bias;
+		float av_0 = angular_vel[0] * (1.f - bias);
+		float av_1 = angular_vel[1] * bias;
+		float combined_av = UMath::Abs(av_0 + av_1);
+
+		if (combined_av > FLT_EPSILON)
+		{
+			float inv_av = 1.f / combined_av;
+			float inv_factor = 1.f - factor;
+			torque_split[0] = ((UMath::Abs(av_1) * inv_av) * factor) + (inv_factor * bias);
+			torque_split[1] = ((UMath::Abs(av_0) * inv_av) * factor) + (inv_factor * (1.f - bias));
+		}
+		else
+		{
+			torque_split[0] = bias;
+			torque_split[1] = 1.f - bias;
+		}
+
+		torque_split[0] = UMath::Clamp(torque_split[0], 0.f, 1.f);
+		torque_split[1] = UMath::Clamp(torque_split[1], 0.f, 1.f);
+	}
+	else
+	{
+		torque_split[0] = bias;
+		torque_split[1] = 1.f - bias;
+	}
+}
+
+/* void SuspensionRacer::DoDriveForces(Chassis::State& state)
+{
+	if (mTransmission)
+	{
+		float drive_torque = mTransmission->GetDriveTorque();
+		if (drive_torque != 0.f)
+		{
+			SuspensionRacer::Differential center_diff;
+			center_diff.factor = mTransInfo.DIFFERENTIAL(2);
+			if (center_diff.factor > 0.f)
+			{
+				center_diff.bias = mTransInfo.TORQUE_SPLIT();
+				center_diff.angular_vel[0] = mTires[0]->GetAngularVelocity() + mTires[1]->GetAngularVelocity();
+				center_diff.angular_vel[1] = mTires[2]->GetAngularVelocity() + mTires[3]->GetAngularVelocity();
+
+				if (mTires[0]->IsOnGround() || (center_diff.has_traction[0] = 0, mTires[1]->IsOnGround()))
+					center_diff.has_traction[0] = 1;
+				if (mTires[2]->IsOnGround() || (center_diff.has_traction[1] = 0, mTires[3]->IsOnGround()))
+					center_diff.has_traction[1] = 1;
+				center_diff.CalcSplit(false);
+			}
+			else
+			{
+				center_diff.torque_split[0] = mTransInfo.TORQUE_SPLIT();
+				center_diff.torque_split[1] = 1.f - center_diff.torque_split[0];
+			}
+
+			uint32_t axle = 0;
+			// loop through 2 wheels at a time so we can easily deal with both wheels on the axle
+			for (SuspensionRacer::Tire** tire = mTires; axle < 2; tire += 2)
+			{
+				float axle_torque = drive_torque * center_diff.torque_split[axle];
+				if (UMath::Abs(axle_torque) > FLT_EPSILON)
+				{
+					SuspensionRacer::Differential diff;
+					diff.bias = 0.5f;
+					float traction_control[2] = { 1.f, 1.f };
+					float traction_boost[2]   = { 1.f, 1.f };
+					diff.factor = mTransInfo.DIFFERENTIAL(axle);
+					diff.angular_vel[0] = tire[0]->GetAngularVelocity();
+					diff.has_traction[0] = tire[0]->IsOnGround();
+
+					float fwd_slip = tire[0]->mSlip * center_diff.torque_split[axle] * 0.5f;
+					float lat_slip = tire[0]->mLateralSpeed * center_diff.torque_split[axle];
+
+					diff.angular_vel[1] = tire[1]->GetAngularVelocity();
+					lat_slip *= 0.5f;
+					diff.has_traction[1] = tire[1]->IsOnGround();
+					
+					bool locked_diff = false;
+					fwd_slip += tire[1]->mSlip * center_diff.torque_split[axle] * 0.5f;
+					lat_slip += tire[1]->mLateralSpeed * center_diff.torque_split[axle] * 0.5f;
+
+					if ((mBurnOut.mState & 1) != 0)
+					{
+						traction_boost[1] = mBurnOut.mTraction;
+						diff.bias = mBurnOut.mTraction * 0.5f;
+						locked_diff = true;
+					}
+					else if ((mBurnOut.mState & 2) != 0)
+					{
+						traction_boost[0] = mBurnOut.mTraction;
+						diff.bias = 1.f - mBurnOut.mTraction * 0.5f;
+						locked_diff = true;
+					}
+					else
+					{
+						float delta_lat_slip = lat_slip - state.local_vel.x;
+						if (delta_lat_slip * state.steer_input > 0.f && fwd_slip * axle_torque > 0.f)
+						{
+							float delta_fwd_slip = fwd_slip - state.local_vel.z;
+							float traction_control_limit = UMath::Ramp(delta_fwd_slip, 1.f, 20.f);
+
+							if (traction_control_limit > 0.f)
+							{
+								float traction_angle = Atan2d(delta_lat_slip, UMath::Abs(delta_fwd_slip)) * state.steer_input;
+								traction_angle = UMath::Abs(traction_angle);
+								traction_control_limit *= UMath::Ramp(traction_angle, 1.f, 16.f);
+								if (traction_control_limit > 0.f)
+								{
+									if (delta_lat_slip > 0.f)
+									{
+										traction_control[1] = 1.f - traction_control_limit;
+										traction_control[0] = 1.f - traction_control_limit * 0.5f;
+										traction_boost[0] = traction_control_limit + 1.f;
+									}
+									else
+									{
+										traction_control[0] = 1.f - traction_control_limit;
+										traction_control[1] = 1.f - traction_control_limit * 0.5f;
+										traction_boost[1] = traction_control_limit + 1.f;
+									}
+								}
+							}
+						}
+					}
+					diff.CalcSplit(locked_diff);
+
+					if (tire[0]->IsOnGround())
+					{
+						if (!tire[0]->mBrakeLocked)
+							tire[0]->mDriveTorque += diff.torque_split[0] * traction_control[0] * axle_torque;
+						tire[0]->mTractionBoost *= traction_boost[0];
+					}
+					if (tire[1]->IsOnGround())
+					{
+						if (!tire[1]->mBrakeLocked)
+							tire[1]->mDriveTorque += diff.torque_split[1] * traction_control[1] * axle_torque;
+						tire[1]->mTractionBoost *= traction_boost[1];
+					}
+				}
+				++axle;
+			}
+		}
+	}
+}
+ */

@@ -26,12 +26,23 @@ public:
 };
 
 // MATCHING
+// Converts a local space vector to world space
 void Rotate(const Vector3& a, const Matrix4& m, Vector3& r)
 {
 	Vector3 v = a;
-	r.x = (v.z * m.v2.x) + m.v1.x * v.y + v.x * m.v0.x;
+	r.x = ((v.z * m.v2.x) + m.v1.x * v.y) + v.x * m.v0.x;
 	r.y = ((v.z * m.v2.y) + m.v1.y * v.y) + v.x * m.v0.y;
 	r.z = ((v.z * m.v2.z) + m.v1.z * v.y) + v.x * m.v0.z;
+}
+
+// MATCHING
+// Converts a local space position to world space
+void RotateTranslate(const Vector3& a, const Matrix4& m, Vector3& r)
+{
+	Vector3 v = a;
+	r.x = ((v.z * m.v2.x) + m.v1.x * v.y) + v.x * m.v0.x + m.v3.x;
+	r.y = ((v.z * m.v2.y) + m.v1.y * v.y) + v.x * m.v0.y + m.v3.y;
+	r.z = ((v.z * m.v2.z) + m.v1.z * v.y) + v.x * m.v0.z + m.v3.z;
 }
 
 } // namespace UMath

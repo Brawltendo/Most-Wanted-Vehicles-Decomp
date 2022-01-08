@@ -1,4 +1,5 @@
-#include "speedcommon.h"
+#pragma once
+//#include "speedcommon.h"
 #include "physics/physicstypes.h"
 
 class ITransmission

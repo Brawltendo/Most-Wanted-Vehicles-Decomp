@@ -124,10 +124,17 @@ struct Vector3
 
     Vector3()
     {
-        /* x = 0.f;
+        x = 0.f;
         y = 0.f;
-        z = 0.f; */
+        z = 0.f;
     }
+
+	Vector3(const Vector3& v)
+	{
+		x = v.x;
+		y = v.y;
+		z = v.z;
+	}
 
     Vector3(const float in)
     {
@@ -230,6 +237,30 @@ struct Vector3
         v.y = b;
         v.z = b;
         return v;
+    }
+
+	Vector3& operator=(const Vector3& b)
+    {
+        x = b.x;
+        y = b.y;
+        z = b.z;
+        return *this;
+    }
+
+	Vector3& operator*=(const float b)
+    {
+        x *= b;
+        y *= b;
+        z *= b;
+        return *this;
+    }
+
+	Vector3& operator*=(const Vector3& b)
+    {
+        x *= b.x;
+        y *= b.y;
+        z *= b.z;
+        return *this;
     }
 
 	Vector3& Vector3::operator=(const struct Vector4& b);
@@ -395,4 +426,16 @@ Vector3& Vector4To3(Vector4& c4)
 	return (Vector3&)c4;
 }
 
+float Dot(const Vector3& a, const Vector3& b)
+{
+	return a.x * b.x + a.y * b.y + a.z * b.z;
 }
+
+void Scale(const Vector3& a, float s, Vector3& r)
+{
+	r.x = a.x * s;
+	r.y = a.y * s;
+	r.z = a.z * s;
+}
+
+} // namespace UMath

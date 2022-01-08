@@ -10,6 +10,7 @@
 #include "misc/graph.h"
 #include "misc/table.h"
 #include "physics/common/average.h"
+#include "physics/physicstunings.h"
 #include "physics/wheel.h"
 
 // Globals
@@ -28,9 +29,9 @@ static UMath::Vector2 BurnoutFrictionData[] =
 	UMath::Vector2(17.1f, 0.72f),
 	UMath::Vector2(25.f, 0.65f)
 };
-static tGraph<float> BurnoutFrictionTable = tGraph<float>(BurnoutFrictionData, 6);
+static tGraph<float> BurnoutFrictionTable(BurnoutFrictionData, 6);
 static float DriftRearFrictionData[] = { 1.1f, 0.95f, 0.87f, 0.77f, 0.67f, 0.6f, 0.51f, 0.43f, 0.37f, 0.34f };
-static Table DriftRearFrictionTable = Table(10, 0.f, 1.f, 9.f, DriftRearFrictionData);
+static Table DriftRearFrictionTable(10, 0.f, 1.f, 9.f, DriftRearFrictionData);
 static UMath::Vector2 DriftStabilizerData[] = 
 {
 	UMath::Vector2(0.f, 0.f),
@@ -41,7 +42,7 @@ static UMath::Vector2 DriftStabilizerData[] =
 	UMath::Vector2(1.5533431f, 1.15f),
 	UMath::Vector2(1.5707964f, 0.f)
 };
-static tGraph<float> DriftStabilizerTable = tGraph<float>(DriftStabilizerData, 7);
+static tGraph<float> DriftStabilizerTable(DriftStabilizerData, 7);
 static float JoystickInputToSteerRemap1[] = 
 {
 	-1.f, -0.712f, -0.453f, -0.303f, -0.216f, -0.148f, -0.116f, -0.08f, -0.061f, -0.034f,
@@ -105,6 +106,18 @@ struct State
     float nos_boost;
     float shift_boost;
     struct WCollider *collider;
+
+	enum Flags
+	{
+		IS_STAGING = 1,
+		IS_DESTROYED
+	};
+
+	const UMath::Vector3& GetRightVector() const { return (UMath::Vector3&)matrix.v0; }
+	const UMath::Vector3& GetUpVector() const { return (UMath::Vector3&)matrix.v1; }
+	const UMath::Vector3& GetForwardVector() const { return (UMath::Vector3&)matrix.v2; }
+	const UMath::Vector3& GetPosition() const { return (UMath::Vector3&)matrix.v3; }
+
 };
 
 } // namespace Chassis
@@ -114,12 +127,17 @@ class SuspensionRacer : ISuspension
 public:
     SuspensionRacer();
     void OnTaskSimulate(float dT);
+	float ComputeMaxSlip(const Chassis::State& state);
+	void DoAerodynamics(const Chassis::State& state, float drag_pct, float aero_pct, float aero_front_z, float aero_rear_z, const Physics::Tunings& tunings);
+	float ComputeLateralGripScale(const Chassis::State& state);
+	float ComputeTractionScale(const Chassis::State& state);
 	void ComputeAckerman(const float steering, const Chassis::State& state, UMath::Vector4& left, UMath::Vector4& right);
 	void DoDrifting(const Chassis::State& state);
 	void DoWheelForces(const Chassis::State& state);
 	float CalculateMaxSteering(const Chassis::State& state, ISteeringWheel::SteeringType steer_type);
 	float CalculateSteeringSpeed(const Chassis::State& state);
 	void DoWallSteer(Chassis::State& state);
+	void DoDriveForces(Chassis::State& state);
 	float DoHumanSteering(const Chassis::State& state);
 	float DoAISteering(Chassis::State& state);
 	void DoSteering(Chassis::State& state, UMath::Vector3& right, UMath::Vector3& left);
@@ -181,6 +199,8 @@ public:
 
     struct Tire : Wheel
     {
+		bool IsOnGround() { return mCompression > 0.f; }
+		float GetAngularVelocity() { return mAV; }
 		float ComputeLateralForce(float load, float slip_angle);
 		float GetPilotFactor(const float speed);
 		void CheckForBrakeLock(float ground_force);
@@ -227,6 +247,17 @@ public:
 
         float mDragReduction;
     } *mTires[4];
+
+	struct Differential
+	{
+		void CalcSplit(bool locked);
+
+		float angular_vel[2];
+		int has_traction[2];
+		float bias;
+		float factor;
+		float torque_split[2];
+	};
 
 };
 //const int offset = offsetof(SuspensionRacer::Tire, mRoadSpeed);

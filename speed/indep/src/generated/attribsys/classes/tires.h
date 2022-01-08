@@ -28,7 +28,7 @@ struct tires : Instance
 		if (index < lp->_Array_YAW_CONTROL.GetLength())
 			return lp->YAW_CONTROL[index];
 		else
-			return *(float*)DefaultDataArea(4);
+			return *(float*)DefaultDataArea(sizeof(float));
 	}
 	unsigned int Num_YAW_CONTROL()
 	{

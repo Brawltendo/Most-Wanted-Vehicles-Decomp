@@ -1,4 +1,5 @@
-#include "speedcommon.h"
+#pragma once
+//#include "speedcommon.h"
 #include "math/matrix.h"
 #include "math/vector.h"
 #include "physics/physicstunings.h"

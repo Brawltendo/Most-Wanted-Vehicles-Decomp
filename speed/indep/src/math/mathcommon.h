@@ -26,6 +26,12 @@ float MPS2MPH(const float _mps_)
 }
 
 // MATCHING
+float MPH2MPS(const float _mph_)
+{
+	return _mph_ * 0.44703001f;
+}
+
+// MATCHING
 float DEG2ANGLE(const float _deg_)
 {
 	return _deg_ / 360.f;
@@ -132,14 +138,14 @@ float Clamp(const float a, const float amin, const float amax)
 
 // MATCHING
 // Returns the interpolant (clamped to [0-1]) for the input value given a min/max range
-float InverseLerp(const float val, const float low_end, const float high_end)
+float Ramp(const float a, const float amin, const float amax)
 {
-	float range = high_end - low_end;
+	float arange = amax - amin;
 	// range needs to be a nonzero value to avoid division errors
 	// it also needs to be above zero in order to output a value between 0 and 1
-	if ((range > FLT_EPSILON))
+	if ((arange > FLT_EPSILON))
 		// clamp to 0-1 range
-		return Max(0.f, Min((val - low_end) / range, 1.f));
+		return Max(0.f, Min((a - amax) / arange, 1.f));
 	else
 		return 0.f;
 }

@@ -85,3 +85,9 @@ float VU0_Atan2(float opposite, float adjacent)
 
   	return (int16_t)bATan(x, y) / 65536.f;
 }
+
+// MATCHING
+float Atan2d(float o, float a)
+{
+  	return ANGLE2DEG(VU0_Atan2(o, a));
+}

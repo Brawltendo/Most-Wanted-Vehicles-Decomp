@@ -1,3 +1,4 @@
+#pragma once
 #include "speedcommon.h"
 #include "math/vector.h"
 
