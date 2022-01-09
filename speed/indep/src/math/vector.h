@@ -6,22 +6,22 @@ namespace UMath
 
 struct Vector2
 {
-	static Vector2 kZero;
+	static const Vector2 kZero;
 
-    union
-    {
-        struct
-        {
-            float x, y;
-        };
-        float arr[2];
-    };
+	float x, y;
 
-    Vector2()
+	Vector2()
     {
-        x = 0.f;
+        /*
+		x = 0.f;
         y = 0.f;
+		*/
     }
+
+	float& operator[](int index)
+	{
+		return (&x)[index];
+	}
 
     Vector2(const float in)
     {
@@ -111,52 +111,100 @@ struct Vector2
 
 struct Vector3
 {
-	static Vector3 kZero;
+	static const Vector3 kZero;
 
-    union
-    {
-        struct
-        {
-            float x, y, z;
-        };
-        float arr[3];
-    };
+	float x, y, z;
 
-    Vector3()
+	Vector3()
     {
-        x = 0.f;
+        /*
+		x = 0.f;
         y = 0.f;
         z = 0.f;
+		*/
     }
 
-	Vector3(const Vector3& v)
+	float& operator[](int index)
 	{
-		x = v.x;
-		y = v.y;
-		z = v.z;
+		return (&x)[index];
 	}
 
-    Vector3(const float in)
+	Vector3(const Vector3& From)
+	{
+		x = From.x;
+		y = From.y;
+		z = From.z;
+	}
+
+    Vector3(const float f)
     {
-        x = in;
-        y = in;
-        z = in;
+        x = f;
+        y = f;
+        z = f;
     }
 
-    Vector3(const float inX, const float inY, const float inZ)
+    Vector3(const float fx, const float fy, const float fz)
     {
-        x = inX;
-        y = inY;
-        z = inZ;
+        x = fx;
+        y = fy;
+        z = fz;
     }
 
-    Vector3 operator+(const Vector3& b)
+	/* Vector3& operator=(const Vector3& From)
     {
-        Vector3 v;
-        v.x = this->x + b.x;
-        v.y = this->y + b.y;
-        v.z = this->z + b.z;
-        return v;
+        x = From.x;
+        y = From.y;
+        z = From.z;
+        return *this;
+    } */
+
+	Vector3& operator*=(const Vector3& b)
+    {
+        x *= b.x;
+        y *= b.y;
+        z *= b.z;
+        return *this;
+    }
+
+	Vector3& operator/=(const float scalar)
+    {
+        x /= scalar;
+        y /= scalar;
+        z /= scalar;
+        return *this;
+    }
+
+	Vector3& operator*=(const float scalar)
+    {
+        x *= scalar;
+        y *= scalar;
+        z *= scalar;
+        return *this;
+    }
+
+	Vector3& operator+=(const Vector3& v)
+    {
+        x += v.x;
+        y += v.y;
+        z += v.z;
+        return *this;
+    }
+
+	Vector3& operator-=(const Vector3& v)
+    {
+        x -= v.x;
+        y -= v.y;
+        z -= v.z;
+        return *this;
+    }
+
+    Vector3 operator+(const Vector3& v)
+    {
+        Vector3 result;
+        result.x = x + v.x;
+        result.y = y + v.y;
+        result.z = z + v.z;
+        return result;
     }
 
     Vector3 operator+(const float b)
@@ -166,14 +214,6 @@ struct Vector3
         v.y = this->y + b;
         v.z = this->z + b;
         return v;
-    }
-
-	Vector3& operator+=(const Vector3& b)
-    {
-        x += b.x;
-        y += b.y;
-        z += b.z;
-        return *this;
     }
 
     Vector3 operator-(const Vector3& b)
@@ -239,46 +279,16 @@ struct Vector3
         return v;
     }
 
-	Vector3& operator=(const Vector3& b)
-    {
-        x = b.x;
-        y = b.y;
-        z = b.z;
-        return *this;
-    }
-
-	Vector3& operator*=(const float b)
-    {
-        x *= b;
-        y *= b;
-        z *= b;
-        return *this;
-    }
-
-	Vector3& operator*=(const Vector3& b)
-    {
-        x *= b.x;
-        y *= b.y;
-        z *= b.z;
-        return *this;
-    }
-
 	Vector3& Vector3::operator=(const struct Vector4& b);
 
 };
 
 struct Vector4
 {
-	static Vector4 kZero;
+	static const Vector4 kZero;
+	static const Vector4 kIdentity;
 
-    union
-    {
-        struct
-        {
-            float x, y, z, w;
-        };
-        float arr[4];
-    };
+	float x, y, z, w;
 
     Vector4()
     {
@@ -287,6 +297,11 @@ struct Vector4
         z = 0.f;
         w = 0.f; */
     }
+
+	float& operator[](int index)
+	{
+		return (&x)[index];
+	}
 
     Vector4(const float in)
     {
@@ -439,3 +454,8 @@ void Scale(const Vector3& a, float s, Vector3& r)
 }
 
 } // namespace UMath
+
+struct UVector3 : UMath::Vector3
+{
+	
+};

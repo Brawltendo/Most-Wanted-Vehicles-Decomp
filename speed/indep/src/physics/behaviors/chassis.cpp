@@ -48,22 +48,27 @@ static float AeroDropOff = 0.5f;
 static float AeroDropOffMin = 0.4f;
 static float OffThrottleDragFactor = 2.f;
 static float OffThrottleDragCenterHeight = -0.1f;
+// MATCHING
 void SuspensionRacer::DoAerodynamics(const Chassis::State& state, float drag_pct, float aero_pct, float aero_front_z, float aero_rear_z, const Physics::Tunings& tunings)
 {
 	// eventually I'll set up proper inheritance for this class...
 	IRigidBody* irb = ((ISimable*)pad[0x30 / 0x4])->GetRigidBody();
+
 	if (drag_pct > 0.f)
 	{
 		const float dragcoef_spec = mChassisInfo.DRAG_COEFFICIENT();
+		// drag increases relative to the car's speed
+		// letting off the throttle will increase drag by OffThrottleDragFactor
 		float drag = (dragcoef_spec * state.speed * drag_pct)
 				   * ((OffThrottleDragFactor - 1.f) * (1.f - state.gas_input) + 1.f);
 		if (&tunings)
 			drag *= tunings.aerodynamicsTuning * 0.25f + 1.f;
 		
 		UMath::Vector3 drag_vector(state.linear_vel);
+		UMath::Scale(drag_vector, -drag, drag_vector);
 		UMath::Vector3 drag_center(state.cog);
-		drag_vector *= -drag;
 
+		// lower drag vertical pos based on off-throttle amount as long as 2 or more wheels are grounded
 		if (state.ground_effect >= 0.5f)
 			drag_center.y += (1.f - state.gas_input) * OffThrottleDragCenterHeight;
 
@@ -73,19 +78,22 @@ void SuspensionRacer::DoAerodynamics(const Chassis::State& state, float drag_pct
 
 	if (aero_pct > 0.f)
 	{
-		
-		volatile float upness = UMath::Max(state.GetUpVector().y, 0.f);
-		// when 2 or more wheels are on the ground, don't scale down the downforce
+		// this should really be an inlined UMath::Max but for some reason it doesn't wanna generate correctly
+		// so instead I manually inlined it
+		float upness_temp = state.GetUpVector().y;
+		if (!(upness_temp > 0.f))
+			upness_temp = 0.f;
+		// scale downforce by the gradient when less than 2 wheels are grounded
+		float upness = upness_temp;
 		if (state.ground_effect >= 0.5f)
 			upness = 1.f;
 		
 		// in reverse, the car's forward vector is used as the movement direction
-		UMath::Vector3 movement_dir = state.GetForwardVector();
+		UMath::Vector3 movement_dir(state.GetForwardVector());
 		if (state.speed > 0.0001f)
 		{
-			movement_dir = state.linear_vel;
-			float inv_speed = 1.f / state.speed;
-			UMath::Scale(movement_dir, inv_speed, movement_dir);
+			UMath::Vector3 lin_vel(state.linear_vel);
+			UMath::Scale(lin_vel, 1.f / state.speed, movement_dir);
 		}
 
 		float forwardness = UMath::Max(UMath::Dot(movement_dir, state.GetForwardVector()), 0.f);
@@ -100,7 +108,7 @@ void SuspensionRacer::DoAerodynamics(const Chassis::State& state, float drag_pct
 		if (downforce > 0.f)
 		{
 			UMath::Vector3 aero_center(state.cog);
-			// when at least 1 wheel is grounded, change the downforce forward position based on the aero CG and axle positions
+			// when at least 1 wheel is grounded, change the downforce forward position using the aero CG and axle positions
 			if (state.ground_effect != 0.f)
 				aero_center.z = (mChassisInfo.AERO_CG() * 0.01f) * (aero_front_z - aero_rear_z) + aero_rear_z;
 
