@@ -8,38 +8,128 @@ import re
 parser = argparse.ArgumentParser()
 parser.add_argument('--i', type=str, required=True, help=
 					'The input assembly file.')
+parser.add_argument('--cpp', type=str, required=True, help=
+					'The input cpp file.')
 args = parser.parse_args()
+
+class Tag:
+	def __init__(self):
+		self.type = ''
+		self.data = ''
+		self.funcStartLine = 0
+
+with open(os.path.dirname(os.path.realpath(__file__)) + args.cpp, 'r') as inCpp:
+	lines = inCpp.readlines()
+	tag = Tag
+	tags = []
+	tagId = '// <@>'
+	isFindingFuncName = False
+	for ind, line in enumerate(lines):
+		if line:
+			if isFindingFuncName:
+				# check to see if this line should have a function name
+				# doing it like this means you need to have the function name on the same line as the opening parenthesis
+				# it also means that this will fail on anything that overloads the parenthesis operator, oh well
+				if '(' in line:
+					funcSplit = line.split('(')[0].split(' ')
+					# some people like a space before the parenthesis, so check for that
+					if funcSplit[len(funcSplit) - 1] == ' ':
+						tag.data = funcSplit[len(funcSplit) - 2] + '('
+					else:
+						tag.data = funcSplit[len(funcSplit) - 1] + '('
+				# check for opening brace and get the line number
+				# this is what will make it easy to check for the function data later
+				elif '{' in line:
+					isFindingFuncName = False
+					tag.funcStartLine = ind + 1
+					tags.append(tag)
+
+			# check for a tag identifier
+			elif line.startswith(tagId):
+				tag = Tag()
+				splitName = line.split(tagId)[1].strip()
+				if splitName == 'PRINT_ASM':
+					tag.type = splitName
+					# PRINT_ASM tag is required to be the final one before the function definition
+					# this is because it needs to search for the function name
+					isFindingFuncName = True
 
 # open the file as utf-16 even though it's cp1251
 # this ensures that we can actually read lines properly
 with open(os.path.dirname(os.path.realpath(__file__)) + '\\' + args.i, 'r', encoding='utf-16') as inAsm:
+	lines = inAsm.readlines()
+	mangledNames = []
+	# do first pass to find all tagged functions
+	if len(tags) > 0:
+		for ind, line in enumerate(lines):
+			if line.startswith(' Symbol name = '):
+				splitLine = line.split(' Symbol name = ')[1]
+				for t in tags:
+					if t.data in splitLine:
+						# check for valid int value
+						numIsValid = True
+						try:
+							lineNum = int(lines[ind - 1].split('Base line number:')[1].strip())
+						except:
+							numIsValid = False
+						if numIsValid and t.funcStartLine == lineNum:
+							mangledNames.append(splitLine[:-1] + ':\n')
+						break
+
 	foundFunction = False
 	functions = []
 	functionLines = []
-	for line in inAsm:
-		if line:
-			# find function start
-			# check for all four of these symbols to avoid the chance of this finding a false positive
-			if '?' in line and '(' in line and ')' in line and ':' in line and not foundFunction:
-				foundFunction = True
-				#print('Found function start')
+	# do second pass to get all function code
+	# if no mangled names are available (means no tags were found), grab every function
+	for line in lines:
+		if line:	
+			if len(mangledNames) > 0:
+				# find function start
+				if mangledNames.count(line) and not foundFunction:
+					foundFunction = True
+					#print('Found function start')
 
-			elif '?' in line and '(' in line and ')' in line and ':' in line and foundFunction:
-				#print('Found function end')
-				functions.append(functionLines.copy())
-				functionLines.clear()
-			
-			elif line == '\n' and foundFunction:
-				#print('Found function end')
-				functions.append(functionLines.copy())
-				functionLines.clear()
-				foundFunction = False
+				elif line.startswith('?') and foundFunction:
+					#print('Found function end')
+					functions.append(functionLines.copy())
+					functionLines.clear()
+					if not mangledNames.count(line):
+						foundFunction = False
 
-			if foundFunction:
-				# don't print padding, though this might need to be changed if a function has a debug break
-				if 'int         3' in line:
-					continue
-				functionLines.append(line[:-1])
+				elif line == '\n' and foundFunction:
+					#print('Found function end')
+					functions.append(functionLines.copy())
+					functionLines.clear()
+					foundFunction = False
+
+				if foundFunction:
+					# don't print padding, though this might need to be changed if a function has a debug break
+					if 'int         3' in line:
+						continue
+					functionLines.append(line[:-1])
+
+			else:
+				# find function start
+				if line.startswith('?') and not foundFunction:
+					foundFunction = True
+					#print('Found function start')
+
+				elif line.startswith('?') and foundFunction:
+					#print('Found function end')
+					functions.append(functionLines.copy())
+					functionLines.clear()
+
+				elif line == '\n' and foundFunction:
+					#print('Found function end')
+					functions.append(functionLines.copy())
+					functionLines.clear()
+					foundFunction = False
+
+				if foundFunction:
+					# don't print padding, though this might need to be changed if a function has a debug break
+					if 'int         3' in line:
+						continue
+					functionLines.append(line[:-1])
 
 jmpInsts = [
 	'jmp', 

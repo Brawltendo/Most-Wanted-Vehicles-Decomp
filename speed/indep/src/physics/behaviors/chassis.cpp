@@ -49,6 +49,7 @@ static float AeroDropOffMin = 0.4f;
 static float OffThrottleDragFactor = 2.f;
 static float OffThrottleDragCenterHeight = -0.1f;
 // MATCHING
+// <@>PRINT_ASM
 void SuspensionRacer::DoAerodynamics(const Chassis::State& state, float drag_pct, float aero_pct, float aero_front_z, float aero_rear_z, const Physics::Tunings& tunings)
 {
 	// eventually I'll set up proper inheritance for this class...
@@ -209,7 +210,7 @@ void SuspensionRacer::ComputeAckerman(const float steering, const Chassis::State
 // NOT MATCHING
 // there are very slight differences in the instruction order detailed below
 // everything else matches though and these differences shouldn't be an issue
-/* void SuspensionRacer::Burnout::Update(const float dT, const float speed_mph, const float wheel_slip, const int wheel_ind, const float yaw)
+void SuspensionRacer::Burnout::Update(const float dT, const float speed_mph, const float wheel_slip, const int wheel_ind, const float yaw)
 {
 	if (mState)
 	{
@@ -258,11 +259,11 @@ void SuspensionRacer::ComputeAckerman(const float steering, const Chassis::State
 		mBurnOutTime = BurnOutFishTailTime;
 		mBurnOutAllow = 0.f;
 	}
-} */
+}
 
 // NOT MATCHING
 // see comments for explanation
-/* void SuspensionRacer::DoDrifting(const Chassis::State& state)
+void SuspensionRacer::DoDrifting(const Chassis::State& state)
 {
 	if (mDrift.State && ((state.flags & 1) || state.driver_style == 1))
 	{
@@ -391,11 +392,11 @@ void SuspensionRacer::ComputeAckerman(const float steering, const Chassis::State
 		mTires[2]->mDriftFriction = driftmult_rear;
 		mTires[3]->mDriftFriction = driftmult_rear;
 	}
-} */
+}
 
 // MATCHING
 // Calculates artificial steering for when the car is touching a wall
-/* void SuspensionRacer::DoWallSteer(Chassis::State& state)
+void SuspensionRacer::DoWallSteer(Chassis::State& state)
 {
 	float wall = mSteering.WallNoseTurn;
 	// nose turn is applied when the car is perpendicular to the wall
@@ -646,12 +647,12 @@ void SuspensionRacer::Tire::CheckSign()
 	else
 		mLastSign = WAS_ZERO;
 }
- */
+
 static float WheelMomentOfInertia = 10.f;
 // MATCHING
 // NOTE: Only matches when the functions that it calls are uncommented, since it needs to know the calling convention
 // Updates forces for an unloaded/airborne tire
-/* void SuspensionRacer::Tire::UpdateFree(float dT)
+void SuspensionRacer::Tire::UpdateFree(float dT)
 {
 	mLoad = 0.f;
 	mSlip = 0.f;
@@ -847,7 +848,7 @@ float SuspensionRacer::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float bo
 	CheckSign();
 	return mLateralForce;
 }
- */
+
 static float LowSpeedSpeed = 0.f;
 static float HighSpeedSpeed = 30.f;
 static float MaxYawBonus = 0.35f;
@@ -856,7 +857,7 @@ static float HighSpeedYawBoost = 1.f;
 static float YawEBrakeThreshold = 0.5f;
 static float YawAngleThreshold = 20.f;
 // MATCHING
-/* float YawFrictionBoost(float yaw, float ebrake, float speed, float yawcontrol, float grade)
+float YawFrictionBoost(float yaw, float ebrake, float speed, float yawcontrol, float grade)
 {
 	float abs_grade = fabsf(grade) + 1.f;
 	float abs_yaw = fabsf(yaw);
@@ -869,7 +870,7 @@ static float YawAngleThreshold = 20.f;
 	if (bonus > MaxYawBonus)
 		bonus = MaxYawBonus;
 	return abs_grade + bonus;
-} */
+}
 
 // stack frame is off in this function for some reason and I can't get it it to match up
 // it's also supposed to move ecx into esi but it's not doing that either
@@ -906,7 +907,7 @@ void SuspensionRacer::Differential::CalcSplit(bool locked)
 	}
 }
 
-/* void SuspensionRacer::DoDriveForces(Chassis::State& state)
+void SuspensionRacer::DoDriveForces(Chassis::State& state)
 {
 	if (mTransmission)
 	{
@@ -1022,4 +1023,3 @@ void SuspensionRacer::Differential::CalcSplit(bool locked)
 		}
 	}
 }
- */
