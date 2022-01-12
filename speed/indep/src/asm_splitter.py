@@ -68,9 +68,15 @@ with open(args.name + '_orig.asm', 'w') as outAsm:
 		for inst in jmpInsts:
 			# strip whitespace and check for equality to avoid duplicate output
 			if inst == instruction.strip():
-				jmpAddr = int(instData, 16)
+				# check for valid int value
+				numIsValid = True
+				try:
+					jmpAddr = int(instData, 16)
+				except:
+					numIsValid = False
+
 				# make sure the address is within the function boundaries
-				if jmpAddr >= int(args.addr[0], 16) or jmpAddr <= int(args.addr[1], 16):
+				if (jmpAddr >= int(args.addr[0], 16) or jmpAddr <= int(args.addr[1], 16)) and numIsValid:
 					newLine.append(format(jmpAddr - int(args.addr[0], 16), '08X'))
 					hasJmpInst = True
 

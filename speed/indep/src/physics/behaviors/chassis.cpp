@@ -49,7 +49,6 @@ static float AeroDropOffMin = 0.4f;
 static float OffThrottleDragFactor = 2.f;
 static float OffThrottleDragCenterHeight = -0.1f;
 // MATCHING
-// <@>PRINT_ASM
 void SuspensionRacer::DoAerodynamics(const Chassis::State& state, float drag_pct, float aero_pct, float aero_front_z, float aero_rear_z, const Physics::Tunings& tunings)
 {
 	// eventually I'll set up proper inheritance for this class...
@@ -263,6 +262,7 @@ void SuspensionRacer::Burnout::Update(const float dT, const float speed_mph, con
 
 // NOT MATCHING
 // see comments for explanation
+// <@>PRINT_ASM
 void SuspensionRacer::DoDrifting(const Chassis::State& state)
 {
 	if (mDrift.State && ((state.flags & 1) || state.driver_style == 1))

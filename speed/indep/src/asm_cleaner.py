@@ -106,6 +106,9 @@ with open(os.path.dirname(os.path.realpath(__file__)) + '\\' + args.i, 'r', enco
 					# don't print padding, though this might need to be changed if a function has a debug break
 					if 'int         3' in line:
 						continue
+					# don't print generated jumptable labels
+					elif line.startswith('$'):
+						continue
 					functionLines.append(line[:-1])
 
 			else:
@@ -128,6 +131,9 @@ with open(os.path.dirname(os.path.realpath(__file__)) + '\\' + args.i, 'r', enco
 				if foundFunction:
 					# don't print padding, though this might need to be changed if a function has a debug break
 					if 'int         3' in line:
+						continue
+					# don't print generated jumptable labels
+					elif line.startswith('$'):
 						continue
 					functionLines.append(line[:-1])
 
