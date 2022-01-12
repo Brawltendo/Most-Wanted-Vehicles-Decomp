@@ -14,35 +14,6 @@
 #include "physics/wheel.h"
 
 // Globals
-static float BurnOutCancelSlipValue = 0.5f;
-static float BurnOutYawCancel = 0.5f;
-static float BurnOutAllowTime = 1.f;
-static float BurnOutMaxSpeed = 20.f;
-static float BurnOutFishTailTime = 2.f;
-static int BurnOutFishTails = 6;
-static UMath::Vector2 BurnoutFrictionData[] = 
-{
-	UMath::Vector2(0.f, 1.f),
-	UMath::Vector2(5.f, 0.8f),
-	UMath::Vector2(9.f, 0.9f),
-	UMath::Vector2(12.6f, 0.833f),
-	UMath::Vector2(17.1f, 0.72f),
-	UMath::Vector2(25.f, 0.65f)
-};
-static tGraph<float> BurnoutFrictionTable(BurnoutFrictionData, 6);
-static float DriftRearFrictionData[] = { 1.1f, 0.95f, 0.87f, 0.77f, 0.67f, 0.6f, 0.51f, 0.43f, 0.37f, 0.34f };
-static Table DriftRearFrictionTable(10, 0.f, 1.f, 9.f, DriftRearFrictionData);
-static UMath::Vector2 DriftStabilizerData[] = 
-{
-	UMath::Vector2(0.f, 0.f),
-	UMath::Vector2(0.2617994f, 0.1f),
-	UMath::Vector2(0.52359879f, 0.45f),
-	UMath::Vector2(0.78539819f, 0.85f),
-	UMath::Vector2(1.0471976f, 0.95f),
-	UMath::Vector2(1.5533431f, 1.15f),
-	UMath::Vector2(1.5707964f, 0.f)
-};
-static tGraph<float> DriftStabilizerTable(DriftStabilizerData, 7);
 static float JoystickInputToSteerRemap1[] = 
 {
 	-1.f, -0.712f, -0.453f, -0.303f, -0.216f, -0.148f, -0.116f, -0.08f, -0.061f, -0.034f,
@@ -175,9 +146,26 @@ public:
 
     struct Burnout 
     {
-		void Update(const float dT, const float speed_mph, const float wheel_slip, const int wheel_ind, const float yaw);
+		void Update(const float dT, const float speedmph, const float max_slip, const int max_slip_wheel, const float yaw);
+		int GetState() { return mState; }
+		float GetTraction() { return mTraction; }
+		void Reset()
+		{
+			mState = 0;
+			mBurnOutTime = 0.f;
+			mBurnOutAllow = 0.f;
+			mTraction = 1.f;
+		}
+		void SetState(int s) { mState = s; }
+		void SetBurnOutTime(float t) { mBurnOutTime = t; }
+		void SetTraction(float t) { mTraction = t; }
+		float GetBurnOutTime(float t) { return mBurnOutTime; }
+		void DecBurnOutTime(float t) { mBurnOutTime -= t; }
+		void ClearBurnOutAllow() { mBurnOutAllow = 0.f; }
+		void IncBurnOutAllow(float t) { mBurnOutAllow += t; }
         
-		uint32_t mState;
+	private:
+		int mState;
         float mBurnOutTime;
         float mTraction;
         float mBurnOutAllow;

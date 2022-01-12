@@ -441,6 +441,11 @@ Vector3& Vector4To3(Vector4& c4)
 	return (Vector3&)c4;
 }
 
+Vector3& Vector4To3(const Vector4& c4)
+{
+	return (Vector3&)c4;
+}
+
 float Dot(const Vector3& a, const Vector3& b)
 {
 	return a.x * b.x + a.y * b.y + a.z * b.z;

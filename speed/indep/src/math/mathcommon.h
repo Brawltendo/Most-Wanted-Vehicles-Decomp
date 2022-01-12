@@ -43,6 +43,18 @@ float ANGLE2DEG(const float _arc_)
 	return _arc_ * 360.f;
 }
 
+// MATCHING
+float DEG2RAD(const float _deg_)
+{
+	return _deg_ * (180.f / PI);
+}
+
+// MATCHING
+float RAD2DEG(const float _rad_)
+{
+	return _rad_ * (PI / 180.f);
+}
+
 namespace UMath
 {
 

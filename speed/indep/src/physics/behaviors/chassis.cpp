@@ -1,6 +1,6 @@
 #include "physics/behaviors/chassis.h"
 
-//#include "interfaces/simables/irigidbody.h"
+#include "interfaces/simables/iplayer.h"
 #include "interfaces/simables/isimable.h"
 #include "interfaces/simables/itransmission.h"
 #include "math/bmath.h"
@@ -9,8 +9,7 @@
 #include "physics/physicsinfo.h"
 
 extern float Sim_GetTime();
-extern void ScaleVector(UMath::Vector3* in, const float scale, UMath::Vector3& dest);
-extern UMath::Vector3* _cdecl TransformVector(const UMath::Vector3& v, const UMath::Matrix4& m, UMath::Vector3& dest);
+void ScaleVector(const UMath::Vector3& in, const float scale, UMath::Vector3& dest);
 
 /* SuspensionRacer::SuspensionRacer()
 {
@@ -196,76 +195,91 @@ void SuspensionRacer::ComputeAckerman(const float steering, const Chassis::State
 	steer_vec.y = 0.f;
 	steer_vec.z = cosf(steer_right);
 	steer_vec.x = sinf(steer_right);
-	TransformVector(steer_vec, state.matrix, steer_vec);
+	UMath::Rotate(steer_vec, state.matrix, steer_vec);
 	right = UMath::Vector4(steer_vec, steer_right);
 
 	steer_vec.y = 0.f;
 	steer_vec.z = cosf(steer_left);
 	steer_vec.x = sinf(steer_left);
-	TransformVector(steer_vec, state.matrix, steer_vec);
+	UMath::Rotate(steer_vec, state.matrix, steer_vec);
 	left = UMath::Vector4(steer_vec, steer_left);
 }
 
-// NOT MATCHING
-// there are very slight differences in the instruction order detailed below
-// everything else matches though and these differences shouldn't be an issue
-void SuspensionRacer::Burnout::Update(const float dT, const float speed_mph, const float wheel_slip, const int wheel_ind, const float yaw)
+float BurnOutCancelSlipValue = 0.5f;
+float BurnOutYawCancel = 0.5f;
+float BurnOutAllowTime = 1.f;
+float BurnOutMaxSpeed = 20.f;
+float BurnOutFishTailTime = 2.f;
+int BurnOutFishTails = 6;
+UMath::Vector2 BurnoutFrictionData[] = 
 {
-	if (mState)
+	UMath::Vector2(0.f, 1.f),
+	UMath::Vector2(5.f, 0.8f),
+	UMath::Vector2(9.f, 0.9f),
+	UMath::Vector2(12.6f, 0.833f),
+	UMath::Vector2(17.1f, 0.72f),
+	UMath::Vector2(25.f, 0.65f)
+};
+tGraph<float> BurnoutFrictionTable(BurnoutFrictionData, 6);
+// MATCHING
+void SuspensionRacer::Burnout::Update(const float dT, const float speedmph, const float max_slip, const int max_slip_wheel, const float yaw)
+{
+	// continue burnout/fishtailing state and end when certain conditions are met
+	if (GetState())
 	{
-		if (speed_mph > 5.f)
+		if (speedmph > 5.f && UMath::Abs(yaw * TWO_PI) > BurnOutYawCancel)
 		{
-			float burnoutYaw = yaw * TWO_PI;
-			ABS(burnoutYaw);
-			if (burnoutYaw > BurnOutYawCancel)
+			Reset();
+		}
+		else if (max_slip < BurnOutCancelSlipValue)
+		{
+			IncBurnOutAllow(dT);
+			if (mBurnOutAllow > BurnOutAllowTime)
+				Reset();
+		}
+		else
+		{
+			ClearBurnOutAllow();
+			DecBurnOutTime(dT);
+			if (mBurnOutTime < 0.f)
 			{
-				mState = 0;
-				mBurnOutTime = 0.f;
-				mBurnOutAllow = 0.f;
-				mTraction = 1.f;
-				return;
+				SetState(mState - 1);
+				SetBurnOutTime(BurnOutFishTailTime);
 			}
 		}
-		if (wheel_slip < BurnOutCancelSlipValue)
-		{
-			mBurnOutAllow += dT;
-			if (mBurnOutAllow > BurnOutAllowTime);
-			else return;
-			mState = 0;
-			mBurnOutTime = 0.f;
-			mBurnOutAllow = 0.f;
-			mTraction = 1.f;
-			return;
-		}
-		mBurnOutAllow = 0.f;
-		mBurnOutTime -= dT;
-		if (mBurnOutTime < 0.f)
-		{
-			--mState;
-			// this gets compiled before the decrement but in the original it comes after
-			mBurnOutTime = BurnOutFishTailTime;
-		}
 	}
-	else if (speed_mph < BurnOutMaxSpeed && wheel_slip > 0.5f)
+	// initialize burnout/fishtailing state
+	else if (speedmph < BurnOutMaxSpeed && max_slip > 0.5f)
 	{
-		float friction;
-		BurnoutFrictionTable.GetValue(friction, wheel_slip);
-		mTraction = friction / 1.4f;
-		// burnout state changes according to what side of the axle the wheel is on
-		mState = (int)((1.5f - friction) * BurnOutFishTails + (wheel_ind & 1));
-		// this gets compiled before mState is assigned instead of after
-		// seems like it might have something to do with BurnOutFishTailTime since it's in both differing instances
-		mBurnOutTime = BurnOutFishTailTime;
-		mBurnOutAllow = 0.f;
+		float burnout_coeff;
+		BurnoutFrictionTable.GetValue(burnout_coeff, max_slip);
+		SetTraction(burnout_coeff / 1.4f);
+		// burnout state changes according to what side of the axle the wheel that's slipping the most is on
+		SetState((int)((1.5f - burnout_coeff) * BurnOutFishTails + (max_slip_wheel & 1)));
+		SetBurnOutTime(BurnOutFishTailTime);
+		ClearBurnOutAllow();
 	}
 }
 
+float DriftRearFrictionData[] = { 1.1f, 0.95f, 0.87f, 0.77f, 0.67f, 0.6f, 0.51f, 0.43f, 0.37f, 0.34f };
+Table DriftRearFrictionTable(10, 0.f, 1.f, 9.f, DriftRearFrictionData);
+UMath::Vector2 DriftStabilizerData[] = 
+{
+	UMath::Vector2(0.f, 0.f),
+	UMath::Vector2(0.2617994f, 0.1f),
+	UMath::Vector2(0.52359879f, 0.45f),
+	UMath::Vector2(0.78539819f, 0.85f),
+	UMath::Vector2(1.0471976f, 0.95f),
+	UMath::Vector2(1.5533431f, 1.15f),
+	UMath::Vector2(1.5707964f, 0.f)
+};
+tGraph<float> DriftStabilizerTable(DriftStabilizerData, 7);
 // NOT MATCHING
-// see comments for explanation
+// fucking auto inlines man
 // <@>PRINT_ASM
 void SuspensionRacer::DoDrifting(const Chassis::State& state)
 {
-	if (mDrift.State && ((state.flags & 1) || state.driver_style == 1))
+	if (mDrift.State && ((state.flags & 1) || state.driver_style == STYLE_DRAG))
 	{
 		mDrift.State = SuspensionRacer::Drift::eState::D_OUT;
 		mDrift.Value = 0.f;
@@ -277,10 +291,12 @@ void SuspensionRacer::DoDrifting(const Chassis::State& state)
 	{
 		case SuspensionRacer::Drift::eState::D_OUT:
 		case SuspensionRacer::Drift::eState::D_EXIT:
+		// the drift value will decrement by (dT * 2) when not drifting or exiting a drift
 			drift_change = -2.f;
 			break;
 		case SuspensionRacer::Drift::eState::D_ENTER:
 		case SuspensionRacer::Drift::eState::D_IN:
+		// the drift value will increment by (dT * 8) when entering and holding a drift
 			drift_change = 8.f;
 			break;
 		default:
@@ -302,41 +318,31 @@ void SuspensionRacer::DoDrifting(const Chassis::State& state)
 
 	if (mDrift.State > SuspensionRacer::Drift::eState::D_ENTER)
 	{
-		float steering_avg = mSteering.InputAverage.fAverage;
-		if ((state.local_angular_vel.y * state.slipangle) < 0.f)
-		{
-			float abs_slipangle = state.slipangle;
-			ABS(abs_slipangle);
-			if (abs_slipangle <= 0.25f
-			&& state.speed > MPH_TO_MPS(30.00005f)
-			&& (steering_avg * state.slipangle) <= 0.f
-			&& fabsf(state.slipangle) > NORMALIZE_ANGLE_DEGREES(12.f))
-			{
-				mDrift.State = SuspensionRacer::Drift::eState::D_IN;
-				goto InDrift;
-			}
-		}
-		if ((state.steer_input * state.slipangle * state.gas_input) > NORMALIZE_ANGLE_DEGREES(12.f) 
-		&& state.speed > MPH_TO_MPS(30.00005f))
+		float avg_steer = mSteering.InputAverage.fAverage;
+		if ((state.local_angular_vel.y * state.slipangle) < 0.f 
+		&& UMath::Abs(state.slipangle) <= 0.25f && state.speed > MPH2MPS(30.00005f)
+		&& (avg_steer * state.slipangle) <= 0.f && UMath::Abs(state.slipangle) > DEG2ANGLE(12.f))
 		{
 			mDrift.State = SuspensionRacer::Drift::eState::D_IN;
-			goto InDrift;
 		}
-		float abs_slipangle = state.slipangle;
-		ABS(abs_slipangle);
-		if ((abs_slipangle * state.gas_input) <= NORMALIZE_ANGLE_DEGREES(12.f))
+		else if ((state.steer_input * state.slipangle) * state.gas_input > DEG2ANGLE(12.f) && state.speed > MPH2MPS(30.00005f))
+		{
+			mDrift.State = SuspensionRacer::Drift::eState::D_IN;
+		}
+		else if (!((UMath::Abs(state.slipangle) * state.gas_input) > DEG2ANGLE(12.f)))
 		{
 			mDrift.State = SuspensionRacer::Drift::eState::D_EXIT;
-			goto InDrift;
 		}
+		else
+		{
+			mDrift.State = SuspensionRacer::Drift::eState::D_ENTER;
+		}
+	}
+	else if (state.speed > MPH2MPS(30.00005f) && (state.ebrake_input > 0.5f || UMath::Abs(state.slipangle) > DEG2ANGLE(12.f)))
+	{
 		mDrift.State = SuspensionRacer::Drift::eState::D_ENTER;
 	}
 
-	else if (state.speed > MPH_TO_MPS(30.00005f) 
-	&& (state.ebrake_input > 0.5f || fabsf(state.slipangle) > NORMALIZE_ANGLE_DEGREES(12.f)))
-		mDrift.State = SuspensionRacer::Drift::eState::D_ENTER;
-
-	InDrift:
 	if (!(mDrift.Value <= 0.f))
 	{
 		float yaw = state.local_angular_vel.y;
@@ -346,49 +352,40 @@ void SuspensionRacer::DoDrifting(const Chassis::State& state)
 
 		// charge speedbreaker if not in use and drifting is detected
 		if (mGameBreaker <= 0.f 
-		&& state.speed > MPH_TO_MPS(35.000058f) 
-		&& fabsf(slipangle_radians) > 0.52358997f)
+		&& state.speed > MPH2MPS(35.000058f) 
+		&& UMath::Abs(slipangle_radians) > DEG2RAD(30.f))//0.52358997f)
 		{
-			// ugly ass function pointers because I don't wanna deal with this class's inheritance and virtual functions right now
+			// ugly ass casting because I don't wanna deal with this class's inheritance and virtual functions right now
 			// you get the point anyway
 
-			// LocalPlayer::IPlayer* PhysicsObject::GetPlayer()
-			int* player = (*(int* (**)())((*(int*)pad[12]) + 0x20))();
+			IPlayer* player = (IPlayer*)((ISimable*)pad[12])->GetPlayer();
 			if (player)
 			{
 				float charge = mDrift.Value * state.time * 0.5f;
-				// void LocalPlayer::ChargeGameBreaker(float amount)
-				(*(void (__fastcall **)(int*, float))((*player) + 0x4C))(player, charge);
+				player->ChargeGameBreaker(charge);
 			}
 		}
 
 		// apply yaw damping torque
 		if ((yaw * slipangle_radians) < 0.f && mNumWheelsOnGround >= 2)
 		{
-			float driftStabilization;
-			DriftStabilizerTable.GetValue(driftStabilization, fabsf(slipangle_radians));
-			float moment = state.inertia.y * mDrift.Value * driftStabilization * yaw * -4.f;
-			UMath::Vector3 yaw_damping;
-			// multiply up vector by yaw moment to get the final amount of damping to apply
-			ScaleVector((UMath::Vector3*)&state.matrix.v1, moment, yaw_damping);
-
-			// void RigidBody::ResolveTorque(UMath::Vector3* torque)
-			// the registers flipped here because I had to force the code to line up by making this a stdcall
-			// in reality it would be a thiscall but that isn't an assignable keyword in MSVC7.1
-			// with proper vfunctions instead of this abomination it would fix itself anyway
-			(*(void (__stdcall **)(UMath::Vector3*))(*(int*)mRB + 0x94))(&yaw_damping);
+			float damping;
+			DriftStabilizerTable.GetValue(damping, UMath::Abs(slipangle_radians));
+			float yaw_coef = state.inertia.y * mDrift.Value * damping * yaw * -4.f;
+			UMath::Vector3 moment;
+			// multiply up vector by yaw coefficient to get the final amount of damping to apply
+			ScaleVector(UMath::Vector4To3(state.matrix.v1), yaw_coef, moment);
+			mRB->ResolveTorque(moment);
 		}
 
-		// set steering multiplier when counter steering is detected
-		float abs_steering = 0.f;
+		// detect counter steering
+		float countersteer = 0.f;
 		if ((slipangle_radians * state.steer_input) > 0.f)
-		{
-			abs_steering = state.steer_input;
-			ABS(abs_steering);
-		}
-		float abs_slipangle = slipangle_radians < 0.f ? -slipangle_radians : slipangle_radians;
-		float abs_yaw = yaw < 0.f ? -yaw : yaw;
-		float driftmult_rear = DriftRearFrictionTable.GetValue(((abs_yaw + abs_slipangle) * 0.5f + abs_steering * 4.f) * mDrift.Value);
+			countersteer = UMath::Abs(state.steer_input);
+			
+		float abs_slipangle = UMath::Abs(slipangle_radians);
+		float abs_yaw = UMath::Abs(yaw);
+		float driftmult_rear = DriftRearFrictionTable.GetValue(((abs_yaw + abs_slipangle) * 0.5f + countersteer * 4.f) * mDrift.Value);
 		mTires[2]->mDriftFriction = driftmult_rear;
 		mTires[3]->mDriftFriction = driftmult_rear;
 	}
@@ -960,16 +957,16 @@ void SuspensionRacer::DoDriveForces(Chassis::State& state)
 					fwd_slip += tire[1]->mSlip * center_diff.torque_split[axle] * 0.5f;
 					lat_slip += tire[1]->mLateralSpeed * center_diff.torque_split[axle] * 0.5f;
 
-					if ((mBurnOut.mState & 1) != 0)
+					if ((mBurnOut.GetState() & 1) != 0)
 					{
-						traction_boost[1] = mBurnOut.mTraction;
-						diff.bias = mBurnOut.mTraction * 0.5f;
+						traction_boost[1] = mBurnOut.GetTraction();
+						diff.bias = mBurnOut.GetTraction() * 0.5f;
 						locked_diff = true;
 					}
-					else if ((mBurnOut.mState & 2) != 0)
+					else if ((mBurnOut.GetState() & 2) != 0)
 					{
-						traction_boost[0] = mBurnOut.mTraction;
-						diff.bias = 1.f - mBurnOut.mTraction * 0.5f;
+						traction_boost[0] = mBurnOut.GetTraction();
+						diff.bias = 1.f - mBurnOut.GetTraction() * 0.5f;
 						locked_diff = true;
 					}
 					else
