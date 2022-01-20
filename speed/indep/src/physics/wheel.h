@@ -1,9 +1,12 @@
 #include "generated/attribsys/classes/simsurface.h"
+#include "math/matrix.h"
 #include "math/vector.h"
 #include "world/wworldpos.h"
 
 __declspec(align(16)) struct Wheel
 {
+	bool UpdatePosition(const UMath::Vector3& body_av, const UMath::Vector3& body_lv, const UMath::Matrix4& body_matrix, const UMath::Vector3& cog, float dT, float wheel_radius, bool usecache, const void* collider, float vehicle_height);
+
     WWorldPos mWorldPos;
     UMath::Vector4 mNormal;
     UMath::Vector3 mPosition;

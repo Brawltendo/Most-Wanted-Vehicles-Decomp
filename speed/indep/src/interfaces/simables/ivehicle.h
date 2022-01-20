@@ -58,7 +58,7 @@ public:
 	virtual bool IsOffWorld();
 	virtual void* GetCustomizations();
 	virtual Physics::Tunings* GetTunings();
-	virtual void GetTunings(const Physics::Tunings&);
+	virtual void SetTunings(const Physics::Tunings&);
 	virtual void* GetPerformance(void*);
 	virtual char* GetCacheName();
 };

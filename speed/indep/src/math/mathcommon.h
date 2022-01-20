@@ -12,11 +12,23 @@
 #define NORMALIZE_ANGLE_DEGREES(x) (x / 360.f)
 #define DEG_TO_RAD 0.017453292f
 
+// MATCHING
 // This function was probably conditionally compiled per platform for the proper intrinsics
+// Stop it from inlining so that it calls this instead of going straight to the intrinsic
 SPEED_NO_INLINE
 float fsqrt(float x)
 {
-	return sqrtf(x);
+	__asm
+	{
+		fld dword ptr [esp+4]
+		fsqrt
+		ret
+	}
+}
+
+float Sqrt(float x)
+{
+	return fsqrt(x);
 }
 
 // MATCHING
@@ -44,6 +56,17 @@ float ANGLE2DEG(const float _arc_)
 }
 
 // MATCHING
+float RAD2ANGLE(const float _rad_){
+	return _rad_ / TWO_PI;
+}
+
+// MATCHING
+float ANGLE2RAD(const float _arc_)
+{
+	return _arc_ * TWO_PI;
+}
+
+// MATCHING
 float DEG2RAD(const float _deg_)
 {
 	return _deg_ * (180.f / PI);
@@ -55,8 +78,48 @@ float RAD2DEG(const float _rad_)
 	return _rad_ * (PI / 180.f);
 }
 
+// MATCHING
+float INCH2METERS(const float _inches_)
+{
+	return _inches_ * 0.0254f;
+}
+
+// MATCHING
+float RPS2RPM(const float _rps_)
+{
+	return _rps_ * 9.5492964f;
+}
+
+// MATCHING
+float RPM2RPS(const float _rpm_)
+{
+	return _rpm_ / 9.5492964f;
+}
+
+// MATCHING
+float LBIN2NM(const float _lbin_)
+{
+	return _lbin_ * 175.1268f;
+}
+
+// MATCHING
+float NM2LBIN(const float _nm_)
+{
+	return _nm_ / 175.1268f;
+}
+
 namespace UMath
 {
+
+// MATCHING
+float Rsqrt(float f)
+{
+	float sqrt = Sqrt(f);
+	if (sqrt != 0.f)
+		return 1.f / sqrt;
+	else
+		return 0.f;
+}
 
 // MATCHING
 float Abs(const float a)
@@ -124,6 +187,23 @@ float ClampAboveZero(const float a, const float amax)
 }
 
 // MATCHING
+// Limits the input value to the range [a,l]
+float Limit(const float a, const float l)
+{
+	float retval;
+	if (!(l * a > 0.f))
+		retval = a;
+	else
+	{
+		if (a > 0.f)
+			retval = UMath::Min(a, l);
+		else
+			retval = UMath::Max(a, l);
+	}
+	return retval;
+}
+
+// MATCHING
 // Clamps a float value within the range [-alimit,alimit]
 float Bound(const float a, const float alimit)
 {
@@ -162,7 +242,7 @@ float Ramp(const float a, const float amin, const float amax)
 		return 0.f;
 }
 
-// Can't match this because it was inlined, but this is what compiles to the right asm so I'll assume it is for now
+// Can't match this because it was inlined, but this is what compiles to the right asm so I'll assume it matches for now
 uint32_t InterpolateIndex(uint32_t last_index, float value, float limit_min, float limit_max, float& ratio)
 {
 	float value_range = limit_max - limit_min;

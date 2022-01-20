@@ -46,6 +46,9 @@ static Table SteerInputRemapTables[] =
 	Table(21, -1.f, 1.f, 10.f, JoystickInputToSteerRemapDrift)
 };
 
+bool IsFront(uint32_t i) { return i < 2; }
+bool IsRear(uint32_t i)  { return i > 1; }
+
 namespace Chassis
 {
     
@@ -113,6 +116,7 @@ public:
 	float DoHumanSteering(const Chassis::State& state);
 	float DoAISteering(Chassis::State& state);
 	void DoSteering(Chassis::State& state, UMath::Vector3& right, UMath::Vector3& left);
+	float CalcYawControlLimit(float speed);
 
 	int pad[0x6C / 0x4];
 	Attrib::Gen::chassis mChassisInfo;
@@ -153,8 +157,8 @@ public:
 		{
 			mState = 0;
 			mBurnOutTime = 0.f;
-			mBurnOutAllow = 0.f;
 			mTraction = 1.f;
+			mBurnOutAllow = 0.f;
 		}
 		void SetState(int s) { mState = s; }
 		void SetBurnOutTime(float t) { mBurnOutTime = t; }
@@ -189,7 +193,24 @@ public:
     struct Tire : Wheel
     {
 		bool IsOnGround() { return mCompression > 0.f; }
+		float SetBrake(float brake) { mBrake = brake; }
+		float SetEBrake(float ebrake) { mEBrake = ebrake; }
+		float GetEBrake() { return mEBrake; }
+		float GetRadius() { return mRadius; }
 		float GetAngularVelocity() { return mAV; }
+		float GetToleratedSlip() { return mSlip; }
+		void SetLateralBoost(float f) { mLateralBoost = f; }
+		void SetBottomOutTime(float time) { mBottomOutTime = time; }
+		void ScaleTractionBoost(float scale) { mTractionBoost *= scale; }
+		void SetDriftFriction(float scale) { mDriftFriction = scale; }
+		void ApplyDriveTorque(float torque) { if (!mBrakeLocked) mDriveTorque += torque; }
+		void ApplyBrakeTorque(float torque) { if (!mBrakeLocked) mBrakeTorque += torque; }
+		float GetTotalTorque() { return mBrakeTorque + mDriveTorque; }
+		float GetDriveTorque() { return mDriveTorque; }
+		float GetLongitudeForce() { return mLongitudeForce; }
+		bool IsBrakeLocked() { return mBrakeLocked; }
+		bool IsSteeringWheel() { return mWheelIndex < 2; }
+		void SetTractionCircle(const UMath::Vector2& circle) { mTractionCircle = circle; }
 		float ComputeLateralForce(float load, float slip_angle);
 		float GetPilotFactor(const float speed);
 		void CheckForBrakeLock(float ground_force);
@@ -247,6 +268,20 @@ public:
 		float factor;
 		float torque_split[2];
 	};
+
+public:
+	bool RearWheelDrive()  { return mTransInfo.TORQUE_SPLIT() < 1.f; }
+	bool FrontWheelDrive() { return mTransInfo.TORQUE_SPLIT() > 0.f; }
+	bool IsDriveWheel(uint32_t i)
+	{
+		if ((!IsRear(i)  || !RearWheelDrive()) 
+		&& ( !IsFront(i) || !FrontWheelDrive()) )
+			return false;
+		else
+			return true;
+	}
+	Tire& GetWheel(uint32_t i) { return *mTires[i]; }
+	const Tire& GetWheel(uint32_t i) const { return *mTires[i]; }
 
 };
 //const int offset = offsetof(SuspensionRacer::Tire, mRoadSpeed);

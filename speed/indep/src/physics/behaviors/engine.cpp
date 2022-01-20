@@ -2,12 +2,13 @@
 
 #include "math/bmath.h"
 #include "math/mathcommon.h"
+#include "physics/physicsinfo.h"
 
 #include "interfaces/simables/ichassis.h"
 
 
 // MATCHING
-/* float EngineRacer::GetBrakingTorque(float engine_torque, float rpm)
+float EngineRacer::GetBrakingTorque(float engine_torque, float rpm)
 {
 	uint32_t numpts = mEngineInfo.Num_ENGINE_BRAKING();
 	if (numpts > 1)
@@ -26,7 +27,7 @@
 	}
 	else
 		return -(engine_torque * mEngineInfo.ENGINE_BRAKING(0));
-} */
+}
 
 // MATCHING
 uint32_t EngineRacer::GetNumGearRatios()
@@ -82,6 +83,7 @@ bool EngineRacer::FrontWheelDrive()
 	return mTrannyInfo.TORQUE_SPLIT() > 0.f;
 }
 
+// NOT MATCHING
 void EngineRacer::LimitFreeWheels(float w)
 {
 	uint32_t numwheels = mSuspension->GetNumWheels();
@@ -98,19 +100,26 @@ void EngineRacer::LimitFreeWheels(float w)
 				continue;
 			
 			float ww = mSuspension->GetWheelAngularVelocity(i);
-			/* if (ww * w < 0.f)
+			float ww_final = ww;
+			if (ww * w < 0.f)
 				ww = 0.f;
-			else
+			else if (ww > 0.f)
 			{
-				//ww = UMath::Max(ww, 0.f);
-				//ww = UMath::VU0_floatmin(ww, w);
-				//ww = UMath::Min(ww, 0.f);
-				//ww = UMath::VU0_floatmax(ww, w);
-				//ww = UMath::VU0_floatmin(UMath::Min(ww, w), 0.f);
-				//ww = UMath::VU0_floatmax(UMath::Max(ww, w), 0.f);
-				ww = UMath::Min(UMath::Max(UMath::VU0_floatmax(UMath::VU0_floatmin(ww, 0.f), w), 0.f), w);
-			} */
-			ww = UMath::ClampAboveZero(ww, w);
+				/* if (ww < w);
+				else
+					ww = w; */
+				//ww = ww < w ? w : ww;
+				ww = UMath::Min(ww, w);
+			}
+			else if (ww < 0.f)
+			{
+				if (ww > w)
+					ww = w;
+				//ww = ww > w ? w : ww;
+				//ww = UMath::Max(ww, w);
+			}
+			/* else if ((ww > 0.f && ww < w) || (ww < 0.f && ww > w))
+				ww = w; */
 			mSuspension->SetWheelAngularVelocity(i, ww);
 		}
 	}
@@ -216,7 +225,7 @@ void EngineRacer::SetDifferentialAngularVelocity(float w)
 }
 
 // MATCHING
-/* EngineRacer::Clutch::Clutch()
+EngineRacer::Clutch::Clutch()
 {
     mState = ENGAGED;
     mTime = 0.f;
@@ -281,11 +290,10 @@ EngineRacer::Clutch::State EngineRacer::Clutch::GetState()
 {
 	return mState;
 }
- */
 
 float SmoothRPMDecel[] = { 2.5f, 15.f };
 // MATCHING
-/* float Engine_SmoothRPM(bool is_shifting, GearID gear, float dT, float old_rpm, float new_rpm, float engine_inertia)
+float Engine_SmoothRPM(bool is_shifting, GearID gear, float dT, float old_rpm, float new_rpm, float engine_inertia)
 {
 	bool fast_shifting = is_shifting && gear > G_FIRST || gear == G_NEUTRAL;
 	// this ternary is dumb but that's what makes it match
@@ -299,4 +307,31 @@ float SmoothRPMDecel[] = { 2.5f, 15.f };
 			rpm = newrpm;
 	}
 	return rpm * 0.55f + old_rpm * 0.45f;
-} */
+}
+
+// NOT MATCHING
+// will match with proper inheritance though so this code is correct
+// <@>PRINT_ASM
+float EngineRacer::GetMaxSpeedometer()
+{
+	uint32_t num_ratios = mTrannyInfo.Num_GEAR_RATIO();
+	if (num_ratios > 0)
+	{
+		float limiter = MPH2MPS(mEngineInfo.SPEED_LIMITER(0));
+		float rpm_max = mEngineInfo.RED_LINE();
+		Physics::Tunings* tunings = GetTunings();
+		float max_speedometer = Physics::Info::Speedometer(
+								mTrannyInfo, 
+								mEngineInfo, 
+								mTireInfo, 
+								rpm_max,
+								(GearID)(num_ratios - 1),
+								tunings);
+		if (limiter > 0.f && !(max_speedometer < limiter))
+			return limiter;
+		else
+			return max_speedometer;
+	}
+	else
+		return 0.f;
+}

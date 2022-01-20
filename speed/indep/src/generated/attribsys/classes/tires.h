@@ -1,3 +1,4 @@
+#pragma once
 #include "attrib/attrib.h"
 #include "physics/physicstypes.h"
 

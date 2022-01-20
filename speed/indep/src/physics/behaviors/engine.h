@@ -89,6 +89,8 @@ private:
 
 public:
 	// interface functions will go here
+	float GetMaxSpeedometer();
+
 };
 //const int offset = offsetof(EngineRacer, mTrannyInfo);
 
