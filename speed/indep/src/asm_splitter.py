@@ -80,7 +80,43 @@ with open(args.name + '_orig.asm', 'w') as outAsm:
 					newLine.append(format(jmpAddr - int(args.addr[0], 16), '08X'))
 					hasJmpInst = True
 
-		if not hasJmpInst:
+		if '[' in instData and '+' in instData and ']' in instData:
+			newLine.append(FixUpOffsets(instData, '+'))
+		elif '[' in instData and '-' in instData and ']' in instData:
+			newLine.append(FixUpOffsets(instData, '-'))
+		elif not hasJmpInst:
+		#if not hasJmpInst:
 			newLine.append(instData)
 
 		outAsm.write("".join(newLine) + '\n')
+
+		# Fixes up offsets to display how they do for obj files with dumpbin's output
+		# For some reason dumping an exe results in a different output compared to an obj
+		def FixUpOffsets(inStr, symbol):
+			preBracket = inStr.split('[')[0] + '['
+			split = inStr.split('[')[1].split(symbol)
+			preSym = split[0] if len(split) < 3 else (split[0] + '+' + split[1])
+			# we always want the last element of the list here or else stuff like dword ptr [esp+ebp*4+00000128h] will throw an error
+			postSym = inStr.split(']')[0].split(symbol)[-1]
+			postBracket = inStr.split(']')[1]
+
+			hasHexSpecifier = False
+			offset = 0
+			if 'h' in postSym:
+				hasHexSpecifier = True
+				offset = int(postSym[:-1], 16)
+			else:
+				offset = int(postSym, 16)
+
+			formatStr = ''
+			if offset >= 0xA and offset < 0x10:
+				formatStr = '02X'
+			elif offset >= 0xA0 and offset < 0x100:
+				formatStr = '03X'
+			else:
+				formatStr = '01X'
+
+			if hasHexSpecifier:
+				return preBracket + preSym + symbol + format(offset, formatStr) + 'h' + ']' + postBracket
+			else:
+				return preBracket + preSym + symbol + format(offset, formatStr) + ']' + postBracket
