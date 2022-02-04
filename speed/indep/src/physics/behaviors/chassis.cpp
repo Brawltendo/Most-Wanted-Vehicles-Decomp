@@ -1212,7 +1212,6 @@ void SuspensionRacer::DoWheelForces(Chassis::State& state)
 	DoSteering(state, steerR, steerL);
 	TuneWheelParams(state);
 
-	UMath::Vector4 vFwd;
 	UMath::Vector4 vUp;
 	uint32_t wheelsOnGround = 0;
 	float maxDelta = 0.f;
@@ -1233,32 +1232,47 @@ void SuspensionRacer::DoWheelForces(Chassis::State& state)
 	float shock_valving[2];
 	float shock_digression[2];
 	float progression[2];
+	// the compiler unrolls this loop
+	// how fun
 	for (int i = 0; i < 2; ++i)
 	{
 		shock_specs[i]      = LBIN2NM(mSuspensionInfo.SHOCK_STIFFNESS().At(i));
 		shock_ext_specs[i]  = LBIN2NM(mSuspensionInfo.SHOCK_EXT_STIFFNESS().At(i));
 		shock_valving[i]    = INCH2METERS(mSuspensionInfo.SHOCK_VALVING().At(i));
-		rideheight_specs[i] = INCH2METERS(mSuspensionInfo.RIDE_HEIGHT().At(i)) + INCH2METERS(ride_extra);
+		shock_digression[i] = 1.f - mSuspensionInfo.SHOCK_DIGRESSION().At(i);
 		spring_specs[i]     = LBIN2NM(mSuspensionInfo.SPRING_STIFFNESS().At(i));
 		sway_specs[i]       = LBIN2NM(mSuspensionInfo.SWAYBAR_STIFFNESS().At(i));
 		travel_specs[i]     = INCH2METERS(mSuspensionInfo.TRAVEL().At(i));
-		shock_digression[i] = 1.f - mSuspensionInfo.SHOCK_DIGRESSION().At(i);
+		rideheight_specs[i] = INCH2METERS(mSuspensionInfo.RIDE_HEIGHT().At(i)) + INCH2METERS(ride_extra);
 		progression[i]      = mSuspensionInfo.SPRING_PROGRESSION().At(i);
 	}
-	float sway_stiffness[4]   = {
-		  (mTires[0]->mCompression - mTires[1]->mCompression) * mSuspensionInfo.SWAYBAR_STIFFNESS().At(0),
-		-((mTires[0]->mCompression - mTires[1]->mCompression) * mSuspensionInfo.SWAYBAR_STIFFNESS().At(0)),
-		  (mTires[2]->mCompression - mTires[3]->mCompression) * mSuspensionInfo.SWAYBAR_STIFFNESS().At(1),
-		-((mTires[2]->mCompression - mTires[3]->mCompression) * mSuspensionInfo.SWAYBAR_STIFFNESS().At(1))
-	};
-	UMath::Vector4 steering_normals[4] = 
-	{
-		(steerL, 1.f),
-		(steerR, 1.f),
-		(state.GetForwardVector(), 1.f),
-		(state.GetForwardVector(), 1.f)
-	};
+	
+	UMath::Vector4 vFwd;
+	float sway_stiffness[4];
+	UMath::Vector4 steering_normals[4];
+	sway_stiffness[0] = (mTires[0]->mCompression - mTires[1]->mCompression) * sway_specs[0];
+	sway_stiffness[1] = -sway_stiffness[0];
+	float delta = (mTires[2]->mCompression - mTires[3]->mCompression);
+	vFwd = steerL;
+	vFwd.w = 1.f;
 	bool resolve = false;
+	sway_stiffness[2] = delta * sway_specs[1];
+	sway_stiffness[3] = -sway_stiffness[2];
+
+	//steering_normals[0].w = 1.f;
+	steering_normals[0] = vFwd;
+
+	vFwd = steerR;
+	vFwd.w = 1.f;
+	steering_normals[1] = vFwd;
+
+	vFwd = state.GetForwardVector();
+	vFwd.w = 1.f;
+	steering_normals[2] = vFwd;
+
+	vFwd = state.GetForwardVector();
+	vFwd.w = 1.f;
+	steering_normals[3] = vFwd;
 
 	for (uint32_t i = 0; i < 4; ++i)
 	{
@@ -1271,25 +1285,41 @@ void SuspensionRacer::DoWheelForces(Chassis::State& state)
 		UMath::UnitCross(groundNormal, forwardNormal, lateralNormal);
 
 		float penetration = wheel.mNormal.w;
-		float upness = UMath::Clamp(UMath::Dot(groundNormal, state.GetUpVector()), 0.f, 1.f);
-		const float oldCompression = upness * rideheight_specs[axle] + penetration;
+		// how angled the wheel is relative to the ground
+		float upness = UMath::Clamp_(UMath::Dot(groundNormal, state.GetUpVector()), 0.f, 1.f);
+		const float oldCompression = wheel.mCompression;
+		float newCompression = upness * rideheight_specs[axle] + penetration;
 		float max_compression = travel_specs[axle];
-		if (wheel.mCompression == 0.f)
-			maxDelta = oldCompression - max_compression;
-		float newCompression = UMath::Max(oldCompression, 0.f);
-		if (0.f <= max_compression)
+		if (oldCompression == 0.f)
 		{
-			maxDelta = UMath::Max(maxDelta, oldCompression - max_compression);
+			float delta = newCompression - max_compression;
+			//maxDelta = UMath::Max(maxDelta, delta);
+			if (maxDelta > delta)
+				delta = maxDelta;
+			maxDelta = delta;
+		}
+		float clamped_comp;
+		//newCompression = UMath::Max(newCompression, 0.f);
+		if (newCompression > 0.f)
+			clamped_comp = newCompression;
+		else
+			clamped_comp = 0.f;
+		newCompression = clamped_comp;
+
+		// handle the suspension bottoming out
+		if (newCompression > max_compression)
+		{
+			float delta = newCompression - max_compression;
+			//maxDelta = UMath::Max(maxDelta, delta);
+			if (maxDelta > delta)
+				delta = maxDelta;
+			maxDelta = delta;
+			// suspension can't compress past the max travel length, so clamp it here
 			newCompression = max_compression;
 			wheel.mBottomOutTime = time;
 		}
 
-		if (newCompression <= 0.f || upness <= ENABLE_ROLL_STOPS_THRESHOLD)
-		{
-			wheel.mForce = UMath::Vector3::kZero;
-			wheel.UpdateFree(dT);
-		}
-		else
+		if (newCompression > 0.f && upness > ENABLE_ROLL_STOPS_THRESHOLD)
 		{
 			++wheelsOnGround;
 			const float diff = (newCompression - wheel.mCompression);
@@ -1303,45 +1333,55 @@ void SuspensionRacer::DoWheelForces(Chassis::State& state)
 				if (abs_rise > valving)
 				{
 					float digression = powf(max_compression / valving, shock_digression[axle]) * valving;
-					if (rise <= 0.f)
-						digression = -digression;
-					rise = digression;
+					if (rise > 0.f)
+						rise = digression;
+					else
+						rise = -digression;
 				}
 			}
 
-			float damp = rise <= 0.f ? shock_ext_specs[axle] : shock_specs[axle];
+			float damp = rise > 0.f ? shock_specs[axle] : shock_ext_specs[axle];
 			damp *= rise;
 			if (damp > mass * mSuspensionInfo.SHOCK_BLOWOUT() * 9.81f)
 				damp = 0.f;
-			float springForce = UMath::Max(damp + sway_stiffness[i] + spring, 0.f);
+			float springForce = damp + sway_stiffness[i] + spring;
+			springForce = UMath::Max(springForce, 0.f);
 
 			UMath::Vector3 verticalForce;
 			UMath::Vector3 driveForce;
 			UMath::Vector3 lateralForce;
 			UMath::Vector3 c;
 
-			UMath::Scale(state.GetUpVector(), springForce, verticalForce);
-			UMath::Cross(groundNormal, forwardNormal, c);
-			UMath::Cross(c, forwardNormal, c);
+			//UMath::Vector3 up = (UMath::Vector3&)state.GetUpVector() * springForce;
+			verticalForce = state.GetUpVector();
+			verticalForce = verticalForce * springForce;
+			//UMath::Scale(state.GetUpVector(), springForce, verticalForce);
+			UMath::Cross(c, forwardNormal, groundNormal);
+			UMath::Cross(c, c, forwardNormal);
 
 			float d2 = UMath::Dot(c, groundNormal);
-			float load = springForce * UMath::Min(d2 * 4.f - 3.f, 0.3f);
+			float load = springForce * UMath::Max(d2 * 4.f - 3.f, 0.3f);
 			float xspeed = UMath::Dot(wheel.mVelocity, lateralNormal);
 			float zspeed = UMath::Dot(wheel.mVelocity, forwardNormal);
 			
 			float traction_force = wheel.UpdateLoaded(xspeed, zspeed, state.speed, load, state.time);
-			float max_traction = UMath::Abs(xspeed / dT * 0.25f * mass);
-			traction_force = UMath::Bound(traction_force, max_traction);
+			float max_traction = (xspeed / dT) * 0.25f * mass;
+			traction_force = UMath::Bound(traction_force, UMath::Abs(max_traction));
 			UMath::Scale(lateralNormal, traction_force, lateralForce);
 
 			UMath::Vector3 force;
 			UMath::Vector3 pointVelocity;
 			UMath::UnitCross(lateralNormal, groundNormal, force);
-			UMath::Scale(driveForce, wheel.mLongitudeForce, driveForce);
+			UMath::Scale(force, wheel.mLongitudeForce, driveForce);
 			force = driveForce + lateralForce + verticalForce;
 			
 			wheel.mForce = force;
 			resolve = true;
+		}
+		else
+		{
+			wheel.mForce = UMath::Vector3::kZero;
+			wheel.UpdateFree(dT);
 		}
 
 		if (newCompression == 0.f)
@@ -1359,7 +1399,7 @@ void SuspensionRacer::DoWheelForces(Chassis::State& state)
 		for (int i = 0; i < GetNumWheels(); ++i)
 		{
 			Tire& wheel = GetWheel(i);
-			UMath::Vector3 p(wheel.mLocalArm.x, wheel.mLocalArm.y + wheel.mCompression - rideheight_specs[i >> 1], wheel.mLocalArm.z);
+			UMath::Vector3 p(wheel.mLocalArm.x, wheel.mLocalArm.y + wheel.mCompression - rideheight_specs[(uint32_t)i >> 1], wheel.mLocalArm.z);
 			UMath::RotateTranslate(p, state.matrix, p);
 			wheel.mPosition = p;
 			UMath::Vector3 force = wheel.mForce;

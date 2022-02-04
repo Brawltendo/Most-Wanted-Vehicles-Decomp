@@ -326,10 +326,10 @@ struct Vector4
 
 	Vector4(const Vector3& v, const float inW)
     {
+        w = inW;
         x = v.x;
         y = v.y;
         z = v.z;
-        w = inW;
     }
 
 
@@ -454,24 +454,45 @@ Vector3& Vector4To3(const Vector4& c4)
 	return (Vector3&)c4;
 }
 
+// MATCHING
 float Dot(const Vector3& a, const Vector3& b)
 {
-	return a.x * b.x + a.y * b.y + a.z * b.z;
+	return (a.z * b.z) + a.y * b.y + a.x * b.x;
 }
 
-void Cross(const Vector3& a, const Vector3& b, Vector3& r)
+/* void Cross(const Vector3& a, const Vector3& b, Vector3& r)
 {
-	r.x = b.z * a.y - b.y * a.z;
-	r.y = b.x * a.z - a.x * b.z;
-	r.z = a.x * b.y - b.x * a.y;
+	float t0 = (b.z * a.y);
+	float t1 = (b.y * a.z);
+	r.x = t0 - t1;
+
+	float t2 = (b.x * a.z);
+	float t3 = (a.x * b.z);
+	r.y = t2 - t3;
+
+	float t4 = (a.x * b.y);
+	float t5 = (b.x * a.y);
+	r.z = t4 - t5;
+} */
+
+// MATCHING
+void Cross(Vector3& r, const Vector3& a, const Vector3& b)
+{
+	float fy = b.x * a.z - b.z * a.x;
+	float fz = b.y * a.x - b.x * a.y;
+	float fx = b.z * a.y - b.y * a.z;
+
+	r.x = fx;
+	r.y = fy;
+	r.z = fz;
 }
 
 Vector3& Cross(const Vector3& a, const Vector3& b)
 {
 	Vector3 r;
-	r.x = b.z * a.y - b.y * a.z;
-	r.y = b.x * a.z - a.x * b.z;
-	r.z = a.x * b.y - b.x * a.y;
+	r.x = (b.z * a.y) - (b.y * a.z);
+	r.y = (b.x * a.z) - (a.x * b.z);
+	r.z = (a.x * b.y) - (b.x * a.y);
 	return r;
 }
 
@@ -507,7 +528,12 @@ void Unit(const Vector3& a, Vector3& r)
 // MATCHING
 void UnitCross(const Vector3& a, const Vector3& b, Vector3& r)
 {
-	r = Cross(a, b);
+	Vector3 c;
+	Cross(c, a, b);
+	/* c.x = (b.z * a.y) - b.y * a.z;
+	c.y = (b.x * a.z) - b.z * a.x;
+	c.z = (b.y * a.x) - b.x * a.y; */
+	r = c;
 	Unit(r, r);
 }
 
