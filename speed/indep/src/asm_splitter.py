@@ -14,13 +14,15 @@ parser.add_argument('--name', type=str, required=True, help=
 					The suffix '_orig' will be added so it doesn't conflict with the compiler's asm output.''')
 args = parser.parse_args()
 
-with open(args.i, 'r') as inAsm:
+# open the file as utf-16 even though it's cp1251
+# this ensures that we can actually read lines properly
+with open(args.i, 'r', encoding='utf-16') as inAsm:
 	foundStartAddr = False
 	linesToFix = []
 	for line in inAsm:
 		if line:
 			# find function start
-			if (args.addr[0] + ':') in line:
+			if line.startswith("  " + args.addr[0] + ':'):
 				foundStartAddr = True
 				print('Found function start')
 
@@ -28,7 +30,7 @@ with open(args.i, 'r') as inAsm:
 			if foundStartAddr:
 				linesToFix.append(line[:-1])
 				# end loop if this line was the end of the function
-				if (args.addr[1] + ':') in line:
+				if line.startswith("  " + args.addr[1] + ':'):
 					print('Found function end')
 					break
 
