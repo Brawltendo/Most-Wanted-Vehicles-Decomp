@@ -82,59 +82,36 @@ with open(os.path.dirname(os.path.realpath(__file__)) + '\\' + args.i, 'r', enco
 	# do second pass to get all function code
 	# if no mangled names are available (means no tags were found), grab every function
 	for line in lines:
-		if line:	
-			if len(mangledNames) > 0:
-				# find function start
-				if mangledNames.count(line) and not foundFunction:
-					foundFunction = True
-					#print('Found function start')
+		if line:
+			isTaggedName = len(mangledNames) > 0
+			hasSymbolSpecs = line.startswith('?') or line.startswith('_')
+			# find function start
+			if ((isTaggedName and mangledNames.count(line)) or (not isTaggedName and hasSymbolSpecs)) and not foundFunction:
+				foundFunction = True
+				#print('Found function start')
 
-				elif line.startswith('?') and foundFunction:
-					#print('Found function end')
-					functions.append(functionLines.copy())
-					functionLines.clear()
-					if not mangledNames.count(line):
-						foundFunction = False
-
-				elif line == '\n' and foundFunction:
-					#print('Found function end')
-					functions.append(functionLines.copy())
-					functionLines.clear()
+			# check for underscores in case of any C functions
+			# yes I know they're not mangled but I'm retrofitting this into what I already wrote lol
+			elif hasSymbolSpecs and foundFunction:
+				#print('Found function end')
+				functions.append(functionLines.copy())
+				functionLines.clear()
+				if isTaggedName and not mangledNames.count(line):
 					foundFunction = False
 
-				if foundFunction:
-					# don't print padding, though this might need to be changed if a function has a debug break
-					if 'int         3' in line:
-						continue
-					# don't print generated jumptable labels
-					elif line.startswith('$'):
-						continue
-					functionLines.append(line[:-1])
+			elif line == '\n' and foundFunction:
+				#print('Found function end')
+				functions.append(functionLines.copy())
+				functionLines.clear()
+				foundFunction = False
 
-			else:
-				# find function start
-				if line.startswith('?') and not foundFunction:
-					foundFunction = True
-					#print('Found function start')
-
-				elif line.startswith('?') and foundFunction:
-					#print('Found function end')
-					functions.append(functionLines.copy())
-					functionLines.clear()
-
-				elif line == '\n' and foundFunction:
-					#print('Found function end')
-					functions.append(functionLines.copy())
-					functionLines.clear()
-					foundFunction = False
-
-				if foundFunction:
-					# don't print padding, though this might need to be changed if a function has a debug break
-					if 'int         3' in line:
-						continue
-					# don't print generated jumptable labels
-					elif line.startswith('$'):
-						continue
+			shouldPrint = True
+			if foundFunction:
+				# don't print padding, though this might need to be changed if a function has a debug break
+				# don't print generated jumptable labels
+				if 'int         3' in line or line.startswith('$'):
+					shouldPrint = False
+				if shouldPrint:
 					functionLines.append(line[:-1])
 
 jmpInsts = [
