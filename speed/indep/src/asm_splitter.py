@@ -16,7 +16,7 @@ args = parser.parse_args()
 
 # open the file as utf-16 even though it's cp1251
 # this ensures that we can actually read lines properly
-with open(args.i, 'r', encoding='utf-16') as inAsm:
+with open(args.i, 'r') as inAsm:
 	foundStartAddr = False
 	linesToFix = []
 	for line in inAsm:
@@ -82,9 +82,9 @@ with open(args.name + '_orig.asm', 'w') as outAsm:
 					newLine.append(format(jmpAddr - int(args.addr[0], 16), '08X'))
 					hasJmpInst = True
 
-		if '[' in instData and '+' in instData and ']' in instData:
+		if 'h' in instData and '[' in instData and '+' in instData and ']' in instData:
 			newLine.append(FixUpOffsets(instData, '+'))
-		elif '[' in instData and '-' in instData and ']' in instData:
+		elif 'h' in instData and '[' in instData and '-' in instData and ']' in instData:
 			newLine.append(FixUpOffsets(instData, '-'))
 		elif not hasJmpInst:
 		#if not hasJmpInst:

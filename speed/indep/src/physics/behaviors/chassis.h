@@ -109,11 +109,11 @@ public:
 	void DoDrifting(const Chassis::State& state);
 	void TuneWheelParams(Chassis::State& state);
 	void DoWheelForces(Chassis::State& state);
-	float CalculateMaxSteering(const Chassis::State& state, ISteeringWheel::SteeringType steer_type);
-	float CalculateSteeringSpeed(const Chassis::State& state);
+	float CalculateMaxSteering(Chassis::State& state, ISteeringWheel::SteeringType steer_type);
+	float CalculateSteeringSpeed(Chassis::State& state);
 	void DoWallSteer(Chassis::State& state);
 	void DoDriveForces(Chassis::State& state);
-	float DoHumanSteering(const Chassis::State& state);
+	float DoHumanSteering(Chassis::State& state);
 	float DoAISteering(Chassis::State& state);
 	void DoSteering(Chassis::State& state, UMath::Vector3& right, UMath::Vector3& left);
 	float CalcYawControlLimit(float speed);

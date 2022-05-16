@@ -91,3 +91,30 @@ float Atan2d(float o, float a)
 {
   	return ANGLE2DEG(VU0_Atan2(o, a));
 }
+
+// MATCHING
+// Returns the greatest of 2 float values
+float bMax(const float a, const float b)
+{
+	return a > b ? a : b;
+}
+
+// MATCHING
+// Returns the smallest of 2 float values
+float bMin(const float a, const float b)
+{
+	return a < b ? a : b;
+}
+
+// MATCHING
+// Clamps a float value within a defined range
+float bClamp(const float a, const float amin, const float amax)
+{
+	return bMin(bMax(a, amin), amax);
+}
+
+float bAbs(float a)
+{
+	float f_abs = fabs(a);
+	return f_abs;
+}

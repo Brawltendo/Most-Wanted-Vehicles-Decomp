@@ -15,6 +15,8 @@ class Average : public AverageBase
 public:
 	virtual void Recalculate();
 	void Record(const float fValue);
+	float GetValue() { return fAverage; }
+	float GetTotal() { return fTotal; }
 
     float fTotal;
     float fAverage;

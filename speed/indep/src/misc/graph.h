@@ -2,11 +2,19 @@
 
 struct GraphBase
 {
-    //virtual void GetValue();
-    //virtual void Blend();
-
     UMath::Vector2 *pGraph;
     int iGraphLength;
+};
+
+struct Graph : GraphBase
+{
+    Graph(UMath::Vector2 graph[], int length)
+	{
+		pGraph = graph;
+		iGraphLength = length;
+	}
+
+	float GetValue(const float x);
 };
 
 template<typename T>

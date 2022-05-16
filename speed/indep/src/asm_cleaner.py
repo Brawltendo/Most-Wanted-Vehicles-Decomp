@@ -18,7 +18,7 @@ class Tag:
 		self.data = ''
 		self.funcStartLine = 0
 
-with open(os.path.dirname(os.path.realpath(__file__)) + args.cpp, 'r') as inCpp:
+with open(args.cpp, 'r') as inCpp:
 	lines = inCpp.readlines()
 	tag = Tag
 	tags = []
@@ -56,7 +56,7 @@ with open(os.path.dirname(os.path.realpath(__file__)) + args.cpp, 'r') as inCpp:
 
 # open the file as utf-16 even though it's cp1251
 # this ensures that we can actually read lines properly
-with open(os.path.dirname(os.path.realpath(__file__)) + '\\' + args.i, 'r', encoding='utf-16') as inAsm:
+with open(args.i, 'r', encoding='utf-16') as inAsm:
 	lines = inAsm.readlines()
 	mangledNames = []
 	# do first pass to find all tagged functions
@@ -135,7 +135,7 @@ jmpInsts = [
 	'jcxz', 'jecxz'
 ]
 
-with open(os.path.dirname(os.path.realpath(__file__)) + '\\' + args.i, 'w', encoding='utf-16') as outAsm:
+with open(args.i, 'w', encoding='utf-16') as outAsm:
 	for function in functions:
 		if function[1][2:10] == '00000000':
 			for line in function:
@@ -157,6 +157,7 @@ with open(os.path.dirname(os.path.realpath(__file__)) + '\\' + args.i, 'w', enco
 				hasJmpInst = False
 
 				for inst in jmpInsts:
+					jmpAddr = 0
 					# strip whitespace and check for equality to avoid duplicate output
 					if inst == instruction.strip():
 						# check for valid int value

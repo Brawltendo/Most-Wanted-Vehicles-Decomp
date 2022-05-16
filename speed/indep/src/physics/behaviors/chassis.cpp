@@ -370,6 +370,277 @@ void SuspensionRacer::Tire::UpdateFree(float dT)
 }
 
 // MATCHING
+float SuspensionRacer::DoHumanSteering(Chassis::State& state)
+{
+	float input = state.steer_input;
+	float prev_steering = mSteering.Previous;
+
+	if (prev_steering >= 180.f)
+		prev_steering -= 360.f;
+
+	float steering_coeff = mTireInfo.STEERING();
+	ISteeringWheel::SteeringType steer_type = ISteeringWheel::SteeringType::kGamePad;
+
+	// LocalPlayer::IPlayer* PhysicsObject::GetPlayer()
+	int* player = (*(int* (**)())((*(int*)pad[12]) + 0x20))();
+	if (player)
+	{
+		// SteeringWheelDevice* LocalPlayer::GetSteeringDevice()
+		int* steering_device = (*(int* (__fastcall **)(int*))((*player) + 0x3C))(player);
+
+		if (steering_device)
+		{
+			// bool SteeringWheelDevice::IsConnected()
+			if ( (*(bool (__fastcall **)(int*))((*steering_device) + 0xC))(steering_device) )
+			{
+				// ISteeringWheel::SteeringType SteeringWheelDevice::GetSteeringType()
+				steer_type = (*(ISteeringWheel::SteeringType (__fastcall **)(int*))((*steering_device) + 0x10))(steering_device);
+			}
+			
+		}
+	}
+
+	float max_steering = CalculateMaxSteering(state, steer_type) * steering_coeff * input;
+	float max_steer_range = UMath::Clamp(max_steering, -45.f, 45.f);
+	float new_steer = max_steer_range;
+
+	if (steer_type == ISteeringWheel::SteeringType::kGamePad)
+	{
+		input = SteerInputRemapTables->GetValue(input);
+		float steer_speed = (CalculateSteeringSpeed(state) * steering_coeff) * state.time;
+		float inc_steer = prev_steering + steer_speed;
+		float dec_steer = prev_steering - steer_speed;
+		if (max_steer_range > dec_steer)
+			dec_steer = max_steer_range;
+		if (inc_steer < dec_steer)
+			dec_steer = inc_steer;
+		
+		new_steer = dec_steer;
+		// this is absolutely pointless but it's part of the steering calculation for whatever reason
+		if (fabsf(new_steer) < 0.f)
+			new_steer = 0.f;
+	}
+	mSteering.LastInput = input;
+	mSteering.Previous = new_steer;
+
+	// if in speedbreaker, increase the current steering angle beyond the normal maximum
+	// this change is instant, so the visual steering angle while in speedbreaker doesn't accurately represent this
+	// instead it interpolates to this value so it looks nicer
+	if (mGameBreaker > 0.f)
+		new_steer += (state.steer_input * 60.f - new_steer) * mGameBreaker;
+
+	mSteering.InputAverage.Record(mSteering.LastInput, Sim_GetTime());
+	return new_steer / 360.f;
+}
+
+float BrakeSteeringRangeMultiplier = 1.45f;
+float SteeringRangeData[]          = { 40.f, 20.f, 10.f, 5.5f, 4.5f, 3.25f, 2.9f, 2.9f, 2.9f, 2.9f };
+float SteeringRangeCoeffData[]     = { 1.f, 1.f, 1.1f, 1.2f, 1.25f, 1.35f };
+float SteeringSpeedData[]          = { 1.f, 1.f, 1.f, 0.56f, 0.5f, 0.35f, 0.3f, 0.3f, 0.3f, 0.3f };
+float SteeringWheelRangeData[]     = { 45.f, 15.f, 11.f, 8.f, 7.f, 7.f, 7.f, 7.f, 7.f, 7.f };
+Table SteeringRangeTable      = Table(10, 0.f, 160.f, 0.5625f, SteeringRangeData);
+Table SteeringWheelRangeTable = Table(10, 0.f, 160.f, 0.5625f, SteeringWheelRangeData);
+Table SteeringRangeCoeffTable = Table(6, 0.f, 1.f, 5.f, SteeringRangeCoeffData);
+Table SteeringSpeedTable      = Table(10, 0.f, 160.f, 0.5625f, SteeringSpeedData);
+UMath::Vector2 PostCollisionSteerReductionData[] = 
+{
+	UMath::Vector2(0.f, 0.2f),
+	UMath::Vector2(0.2f, 0.5f),
+	UMath::Vector2(0.5f, 0.7f),
+	UMath::Vector2(0.7f, 1.f)
+};
+Graph PostCollisionSteerReductionTable(PostCollisionSteerReductionData, 4);
+// NOT MATCHING
+// the last part of the function is very stubborn, but it matches functionally at least
+// <@>PRINT_ASM
+float SuspensionRacer::CalculateMaxSteering(Chassis::State& state, ISteeringWheel::SteeringType steer_type)
+{
+	const float MAX_STEERING_ANGLE = 45.f;
+	const float steer_input = state.steer_input;
+
+	// max possible steering output scales with the car's forward speed
+	float max_steering = SteeringRangeTable.GetValue(state.local_vel.z);
+	// there are 2 racing wheel input types, one scales with speed and the other doesn't
+	switch (steer_type)
+	{
+		case ISteeringWheel::SteeringType::kWheelSpeedSensitive:
+			max_steering = SteeringWheelRangeTable.GetValue(state.local_vel.z);
+			break;
+		case ISteeringWheel::SteeringType::kWheelSpeedInsensitive:
+			return MAX_STEERING_ANGLE;
+		default:
+			break;
+	}
+
+	/* 
+	 *  manipulate the max steering range based on the throttle, brake, and handbrake inputs
+	 *  pressing only the throttle will give the regular steering range
+	 *  throttle + a brake input will boost the steering range by 25% of BrakeSteeringRangeMultiplier
+	 *  throttle + both brake inputs will boost the steering range by 50% of BrakeSteeringRangeMultiplier
+	 *  a single brake input will boost the steering range by 75% of BrakeSteeringRangeMultiplier
+	 *  both brake inputs will boost the steering range by 100% of BrakeSteeringRangeMultiplier
+	 */
+	float tbcoeff = 1.f - (state.gas_input + 1.f - (state.ebrake_input + state.brake_input) * 0.5f) * 0.5f;
+	max_steering *= SteeringSpeedTable.GetValue(state.local_vel.z) * BrakeSteeringRangeMultiplier * tbcoeff + 1.f;
+	max_steering *= SteeringRangeCoeffTable.GetValue(fabsf(mSteering.InputAverage.GetValue()));
+
+	const Physics::Tunings* tunings = ((IVehicle*)pad[0x44 / 4])->GetTunings();
+	// steering tuning allows for up to a 20% increase or decrease to the max steering range
+	if (tunings)
+		max_steering *= tunings->steeringTuning * 0.2f + 1.f;
+
+	// reduce steering range after a collision
+	if (mSteering.CollisionTimer > 0.f)
+	{
+		// steering range reduction lasts for one second
+		float secs = 1.f - mSteering.CollisionTimer;
+		if (secs < 1.f && secs > 0.f)
+		{
+			float speed_coeff = UMath::Min(1.f, state.local_vel.z / (MPH2MPS(170.f) * 0.7f));
+			float collision_coeff = PostCollisionSteerReductionTable.GetValue(secs);
+			speed_coeff = (1.f - speed_coeff); // only matches with parentheses
+			max_steering *= speed_coeff * (1.f - collision_coeff) + collision_coeff;
+		}
+	}
+
+	// when steering, the max possible steering range can't go below the slip angle of the rear wheel on the inside of the turn
+	float yaw_left  = ANGLE2DEG(GetWheel(2).mSlipAngle);
+	float yaw_right = ANGLE2DEG(GetWheel(3).mSlipAngle);
+	// steering right
+	if (steer_input > 0.f && yaw_right > 0.f)
+	{
+		max_steering = bClamp(max_steering, yaw_right, MAX_STEERING_ANGLE);
+	}
+	// steering left
+	else if (steer_input < 0.f && yaw_left < 0.f)
+	{
+		max_steering = bClamp(max_steering, -yaw_left, MAX_STEERING_ANGLE);
+	}
+	else if (bAbs(mSteering.InputAverage.GetValue()) >= 0.5f)
+	{
+		// NOTE: multiplying parts of equations by zero to nullify them is a recurring Black Box coding style quirk
+		// I have no idea why they did it that way instead of just commenting them out
+
+		// don't let the max steering range go below the previous frame's value
+		max_steering = bMax(max_steering, mSteering.LastMaximum - state.time * 0.f);
+	}
+
+	// this is kinda pointless for the first 2 checks since they already clamp to MAX_STEERING_ANGLE
+	max_steering = bMin(max_steering, MAX_STEERING_ANGLE);
+	mSteering.LastMaximum = max_steering;
+	return max_steering;
+}
+
+float SteeringInputSpeedData[] = { 1.f, 1.05f, 1.1f, 1.5f, 2.2f, 3.1f };
+float SteeringInputData[]      = { 1.f, 1.05f, 1.1f, 1.2f, 1.3f, 1.4f };
+Table SteeringInputSpeedCoeffTable = Table(6, 0.f, 10.f, 0.5f, SteeringInputSpeedData);
+Table SteeringInputCoeffTable      = Table(6, 0.f, 1.f, 5.f, SteeringInputSpeedData);
+// NOT MATCHING
+// seems like it really wants that volatile in order to fully match (it's still functionally matching though)
+float SuspensionRacer::CalculateSteeringSpeed(Chassis::State& state)
+{
+	// get a rough approximation of how fast the player is steering
+	// this ends up creating a bit of a difference in how fast you can actually steer on a controller under normal circumstances
+	// using a keyboard will always give you the fastest steering possible
+	volatile float steer_input_speed = (state.steer_input - mSteering.LastInput) / state.time;
+
+	mSteering.InputSpeedCoeffAverage.Record(SteeringInputSpeedCoeffTable.GetValue(bAbs(steer_input_speed)), Sim_GetTime());
+
+	// steering speed scales with vehicle forward speed
+	float steer_speed = (SteeringSpeedTable.GetValue(state.local_vel.z) * 180.f) * mSteering.InputSpeedCoeffAverage.fAverage;
+	float steer_input = bAbs(mSteering.InputAverage.GetValue());
+	return SteeringInputCoeffTable.GetValue(steer_input) * steer_speed;
+}
+
+// MATCHING
+float SuspensionRacer::DoAISteering(Chassis::State& state)
+{
+	mSteering.Maximum = 45.f;
+	if (state.driver_style != STYLE_DRAG)
+		mSteering.Maximum = mTireInfo.STEERING() * 45.f;
+
+	return DEG2ANGLE(state.steer_input * mSteering.Maximum);
+}
+
+// MATCHING
+void SuspensionRacer::DoSteering(Chassis::State& state, UMath::Vector3& right, UMath::Vector3& left)
+{
+	float truesteer;
+	UMath::Vector4 r4;
+	UMath::Vector4 l4;
+
+	// I don't know exactly what this vfunction call is,
+	// but it's safe to assume it's checking to see if the current vehicle is player controlled
+	if (mHumanAI && (*(bool (__fastcall **)(int*))((*(int*)mHumanAI) + 0x8))((int*)mHumanAI))
+		truesteer = DoHumanSteering(state);
+	else
+		truesteer = DoAISteering(state);
+	
+	ComputeAckerman(truesteer, state, l4, r4);
+	right = Vector4To3(r4);
+	left  = Vector4To3(l4);
+	mSteering.Wheels[0] = l4.w;
+	mSteering.Wheels[1] = r4.w;
+	DoWallSteer(state);
+}
+
+float BurnOutCancelSlipValue = 0.5f;
+float BurnOutYawCancel = 0.5f;
+float BurnOutAllowTime = 1.f;
+float BurnOutMaxSpeed = 20.f;
+float BurnOutFishTailTime = 2.f;
+int BurnOutFishTails = 6;
+UMath::Vector2 BurnoutFrictionData[] = 
+{
+	UMath::Vector2(0.f, 1.f),
+	UMath::Vector2(5.f, 0.8f),
+	UMath::Vector2(9.f, 0.9f),
+	UMath::Vector2(12.6f, 0.833f),
+	UMath::Vector2(17.1f, 0.72f),
+	UMath::Vector2(25.f, 0.65f)
+};
+tGraph<float> BurnoutFrictionTable(BurnoutFrictionData, 6);
+// MATCHING
+void SuspensionRacer::Burnout::Update(const float dT, const float speedmph, const float max_slip, const int max_slip_wheel, const float yaw)
+{
+	// continue burnout/fishtailing state and end when certain conditions are met
+	if (GetState())
+	{
+		if (speedmph > 5.f && UMath::Abs(yaw * TWO_PI) > BurnOutYawCancel)
+		{
+			Reset();
+		}
+		else if (max_slip < BurnOutCancelSlipValue)
+		{
+			IncBurnOutAllow(dT);
+			if (mBurnOutAllow > BurnOutAllowTime)
+				Reset();
+		}
+		else
+		{
+			ClearBurnOutAllow();
+			DecBurnOutTime(dT);
+			if (mBurnOutTime < 0.f)
+			{
+				SetState(mState - 1);
+				SetBurnOutTime(BurnOutFishTailTime);
+			}
+		}
+	}
+	// initialize burnout/fishtailing state
+	else if (speedmph < BurnOutMaxSpeed && max_slip > 0.5f)
+	{
+		float burnout_coeff;
+		BurnoutFrictionTable.GetValue(burnout_coeff, max_slip);
+		SetTraction(burnout_coeff / 1.4f);
+		// burnout state changes according to what side of the axle the wheel that's slipping the most is on
+		SetState((int)((1.5f - burnout_coeff) * BurnOutFishTails + (max_slip_wheel & 1)));
+		SetBurnOutTime(BurnOutFishTailTime);
+		ClearBurnOutAllow();
+	}
+}
+
+// MATCHING
 // Calculates artificial steering for when the car is touching a wall
 void SuspensionRacer::DoWallSteer(Chassis::State& state)
 {
@@ -426,7 +697,7 @@ float YawFrictionBoost(float yaw, float ebrake, float speed, float yawcontrol, f
 }
 
 // NOT MATCHING
-// stack frame is off in this function for some reason and I can't get it it to match up
+// stack frame is off in this function for some reason and I can't get it to match up
 // it's also supposed to move ecx into esi but it's not doing that either
 // everything else matches but it won't actually line up till I can get past the stack memes
 void SuspensionRacer::Differential::CalcSplit(bool locked)
@@ -749,159 +1020,6 @@ float SuspensionRacer::Tire::UpdateLoaded(float lat_vel, float fwd_vel, float bo
 }
 
 // MATCHING
-float SuspensionRacer::DoHumanSteering(const Chassis::State& state)
-{
-	float input = state.steer_input;
-	float prev_steering = mSteering.Previous;
-
-	if (prev_steering >= 180.f)
-		prev_steering -= 360.f;
-
-	float steering_coeff = mTireInfo.STEERING();
-	ISteeringWheel::SteeringType steer_type = ISteeringWheel::SteeringType::kGamePad;
-
-	// LocalPlayer::IPlayer* PhysicsObject::GetPlayer()
-	int* player = (*(int* (**)())((*(int*)pad[12]) + 0x20))();
-	if (player)
-	{
-		// SteeringWheelDevice* LocalPlayer::GetSteeringDevice()
-		int* steering_device = (*(int* (__fastcall **)(int*))((*player) + 0x3C))(player);
-
-		if (steering_device)
-		{
-			// bool SteeringWheelDevice::IsConnected()
-			if ( (*(bool (__fastcall **)(int*))((*steering_device) + 0xC))(steering_device) )
-			{
-				// ISteeringWheel::SteeringType SteeringWheelDevice::GetSteeringType()
-				steer_type = (*(ISteeringWheel::SteeringType (__fastcall **)(int*))((*steering_device) + 0x10))(steering_device);
-			}
-			
-		}
-	}
-
-	float max_steering = CalculateMaxSteering(state, steer_type) * steering_coeff * input;
-	float max_steer_range = UMath::Clamp(max_steering, -45.f, 45.f);
-	float new_steer = max_steer_range;
-
-	if (steer_type == ISteeringWheel::SteeringType::kGamePad)
-	{
-		input = SteerInputRemapTables->GetValue(input);
-		float steer_speed = (CalculateSteeringSpeed(state) * steering_coeff) * state.time;
-		float inc_steer = prev_steering + steer_speed;
-		float dec_steer = prev_steering - steer_speed;
-		if (max_steer_range > dec_steer)
-			dec_steer = max_steer_range;
-		if (inc_steer < dec_steer)
-			dec_steer = inc_steer;
-		
-		new_steer = dec_steer;
-		// this is absolutely pointless but it's part of the steering calculation for whatever reason
-		if (fabsf(new_steer) < 0.f)
-			new_steer = 0.f;
-	}
-	mSteering.LastInput = input;
-	mSteering.Previous = new_steer;
-
-	// if in speedbreaker, increase the current steering angle beyond the normal maximum
-	// this change is instant, so the visual steering angle while in speedbreaker doesn't accurately represent this
-	// instead it interpolates to this value so it looks nicer
-	if (mGameBreaker > 0.f)
-		new_steer += (state.steer_input * 60.f - new_steer) * mGameBreaker;
-
-	mSteering.InputAverage.Record(mSteering.LastInput, Sim_GetTime());
-	return new_steer / 360.f;
-}
-
-// can't tell if this function is matching or not since it's inlined in the PC version and I haven't found the uninlined function
-// it's generating the right code in DoSteering though so it probably matches
-float SuspensionRacer::DoAISteering(Chassis::State& state)
-{
-	mSteering.Maximum = 45.f;
-	if (state.driver_style != STYLE_DRAG)
-		mSteering.Maximum = mTireInfo.STEERING() * 45.f;
-
-	return DEG2ANGLE(state.steer_input * mSteering.Maximum);
-}
-
-// MATCHING
-void SuspensionRacer::DoSteering(Chassis::State& state, UMath::Vector3& right, UMath::Vector3& left)
-{
-	float truesteer;
-	UMath::Vector4 r4;
-	UMath::Vector4 l4;
-
-	// I don't know exactly what this vfunction call is,
-	// but it's safe to assume it's checking to see if the current vehicle is player controlled
-	if (mHumanAI && (*(bool (__fastcall **)(int*))((*(int*)mHumanAI) + 0x8))((int*)mHumanAI))
-		truesteer = DoHumanSteering(state);
-	else
-		truesteer = DoAISteering(state);
-	
-	ComputeAckerman(truesteer, state, l4, r4);
-	right = Vector4To3(r4);
-	left  = Vector4To3(l4);
-	mSteering.Wheels[0] = l4.w;
-	mSteering.Wheels[1] = r4.w;
-	DoWallSteer(state);
-}
-
-float BurnOutCancelSlipValue = 0.5f;
-float BurnOutYawCancel = 0.5f;
-float BurnOutAllowTime = 1.f;
-float BurnOutMaxSpeed = 20.f;
-float BurnOutFishTailTime = 2.f;
-int BurnOutFishTails = 6;
-UMath::Vector2 BurnoutFrictionData[] = 
-{
-	UMath::Vector2(0.f, 1.f),
-	UMath::Vector2(5.f, 0.8f),
-	UMath::Vector2(9.f, 0.9f),
-	UMath::Vector2(12.6f, 0.833f),
-	UMath::Vector2(17.1f, 0.72f),
-	UMath::Vector2(25.f, 0.65f)
-};
-tGraph<float> BurnoutFrictionTable(BurnoutFrictionData, 6);
-// MATCHING
-void SuspensionRacer::Burnout::Update(const float dT, const float speedmph, const float max_slip, const int max_slip_wheel, const float yaw)
-{
-	// continue burnout/fishtailing state and end when certain conditions are met
-	if (GetState())
-	{
-		if (speedmph > 5.f && UMath::Abs(yaw * TWO_PI) > BurnOutYawCancel)
-		{
-			Reset();
-		}
-		else if (max_slip < BurnOutCancelSlipValue)
-		{
-			IncBurnOutAllow(dT);
-			if (mBurnOutAllow > BurnOutAllowTime)
-				Reset();
-		}
-		else
-		{
-			ClearBurnOutAllow();
-			DecBurnOutTime(dT);
-			if (mBurnOutTime < 0.f)
-			{
-				SetState(mState - 1);
-				SetBurnOutTime(BurnOutFishTailTime);
-			}
-		}
-	}
-	// initialize burnout/fishtailing state
-	else if (speedmph < BurnOutMaxSpeed && max_slip > 0.5f)
-	{
-		float burnout_coeff;
-		BurnoutFrictionTable.GetValue(burnout_coeff, max_slip);
-		SetTraction(burnout_coeff / 1.4f);
-		// burnout state changes according to what side of the axle the wheel that's slipping the most is on
-		SetState((int)((1.5f - burnout_coeff) * BurnOutFishTails + (max_slip_wheel & 1)));
-		SetBurnOutTime(BurnOutFishTailTime);
-		ClearBurnOutAllow();
-	}
-}
-
-// MATCHING
 float SuspensionRacer::CalcYawControlLimit(float speed)
 {
 	if (mTransmission)
@@ -1202,7 +1320,6 @@ void SuspensionRacer::TuneWheelParams(Chassis::State& state)
 }
 
 float ENABLE_ROLL_STOPS_THRESHOLD = 0.2f;
-// <@>PRINT_ASM
 void SuspensionRacer::DoWheelForces(Chassis::State& state)
 {
 	const float dT = state.time;

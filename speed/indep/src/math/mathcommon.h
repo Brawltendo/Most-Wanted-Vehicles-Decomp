@@ -1,5 +1,6 @@
 #pragma once
 #include <math.h>
+#include "speedcommon.h"
 
 #define PI 3.14159265f
 #define TWO_PI 6.2831855f
