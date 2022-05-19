@@ -534,7 +534,7 @@ float SuspensionRacer::CalculateMaxSteering(Chassis::State& state, ISteeringWhee
 float SteeringInputSpeedData[] = { 1.f, 1.05f, 1.1f, 1.5f, 2.2f, 3.1f };
 float SteeringInputData[]      = { 1.f, 1.05f, 1.1f, 1.2f, 1.3f, 1.4f };
 Table SteeringInputSpeedCoeffTable = Table(6, 0.f, 10.f, 0.5f, SteeringInputSpeedData);
-Table SteeringInputCoeffTable      = Table(6, 0.f, 1.f, 5.f, SteeringInputSpeedData);
+Table SteeringInputCoeffTable      = Table(6, 0.f, 1.f, 5.f, SteeringInputData);
 // NOT MATCHING
 // seems like it really wants that volatile in order to fully match (it's still functionally matching though)
 float SuspensionRacer::CalculateSteeringSpeed(Chassis::State& state)
