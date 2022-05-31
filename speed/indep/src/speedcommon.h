@@ -11,5 +11,6 @@ typedef unsigned int       uint32_t;
 //typedef unsigned long long uint64_t;
 
 #define SPEED_NO_INLINE _declspec(noinline)
+#define SPEED_INTERFACE class
 
 #define CHECK_FLAG_ON(in_flag, check) (in_flag & check) != 0

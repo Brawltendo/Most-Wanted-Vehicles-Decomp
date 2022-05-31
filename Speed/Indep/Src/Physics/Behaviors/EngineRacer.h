@@ -1,13 +1,17 @@
+#pragma once
+// attribs
 #include "generated/attribsys/classes/engine.h"
 #include "generated/attribsys/classes/induction.h"
 #include "generated/attribsys/classes/nos.h"
 #include "generated/attribsys/classes/tires.h"
 #include "generated/attribsys/classes/transmission.h"
 
+// interfaces/inheritance
+#include "interfaces/itaskable.h"
 #include "interfaces/simables/iengine.h"
-#include "interfaces/simables/itaskable.h"
 #include "interfaces/simables/itransmission.h"
 #include "interfaces/simables/ivehicle.h"
+
 #include "physics/physicstypes.h"
 
 class EngineRacer : Sim::ITaskable, IVehicle, ITransmission, IEngine 

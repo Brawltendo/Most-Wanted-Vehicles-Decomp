@@ -1,10 +1,10 @@
 #pragma once
-//#include "speedcommon.h"
-#include "interfaces/simables/irigidbody.h"
+#include "speedcommon.h"
+//#include "interfaces/simables/irigidbody.h"
 #include "math/matrix.h"
 #include "math/vector.h"
 
-class ISimable
+SPEED_INTERFACE ISimable
 {
 public:
 	virtual void _PADDING();
@@ -15,7 +15,7 @@ public:
     virtual void* GetAttachments();
     virtual void AttachEntity(void*);
     virtual void DetachEntity(void*);
-    virtual void* GetPlayer();
+    virtual class IPlayer* GetPlayer();
     virtual bool IsPlayer();
     virtual bool IsOwnedByPlayer();
     virtual void* GetEntity();
@@ -27,8 +27,8 @@ public:
     virtual void* GetAttributes();
     virtual void* GetWPos();
     virtual void* GetWPos() const;
-    virtual IRigidBody* GetRigidBody();
-    virtual IRigidBody* GetRigidBody() const;
+    virtual class IRigidBody* GetRigidBody();
+    virtual class IRigidBody* GetRigidBody() const;
     virtual bool IsRigidBodySimple();
     virtual bool IsRigidBodyComplex();
     virtual UMath::Vector3& GetPosition();

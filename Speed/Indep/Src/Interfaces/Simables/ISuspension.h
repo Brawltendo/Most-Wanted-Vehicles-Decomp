@@ -1,8 +1,10 @@
 #pragma once
 #include "speedcommon.h"
 #include "math/vector.h"
+#include "Speed/indep/Libs/Support/Utility/UCOM.h"
 
-class ISuspension
+
+SPEED_INTERFACE ISuspension : public UTL::COM::IUnknown
 {
 public:
 	virtual void _PADDING();

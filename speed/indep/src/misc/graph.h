@@ -1,4 +1,6 @@
+#pragma once
 #include "math/vector.h"
+
 
 struct GraphBase
 {

@@ -1,6 +1,7 @@
 #pragma once
 #include "speedcommon.h"
 #include "math/mathcommon.h"
+#include "Speed/Indep/Tools/Inc/ConversionUtil.hpp"
 
 static uint16_t bFastATanTable[] =
 {

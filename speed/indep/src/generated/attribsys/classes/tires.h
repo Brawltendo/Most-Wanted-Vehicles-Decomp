@@ -1,5 +1,5 @@
 #pragma once
-#include "attrib/attrib.h"
+#include "Speed/indep/Tools/AttribSys/Runtime/AttribSys.h"
 #include "physics/physicstypes.h"
 
 namespace Attrib

@@ -1,5 +1,7 @@
 // A group of classes used to return the average and total values of an input buffer
+#pragma once
 #include "speedcommon.h"
+
 
 class AverageBase
 {

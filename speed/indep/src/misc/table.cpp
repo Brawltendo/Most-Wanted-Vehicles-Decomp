@@ -1,4 +1,4 @@
-#include "misc/table.h"
+#include "misc/table.hpp"
 
 // MATCHING
 float Table::GetValue(float input)

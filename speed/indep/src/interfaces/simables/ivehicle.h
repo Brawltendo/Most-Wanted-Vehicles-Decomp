@@ -1,9 +1,10 @@
+#pragma once
 #include "speedcommon.h"
 #include "math/vector.h"
 #include "physics/physicstunings.h"
 #include "physics/physicstypes.h"
 
-class IVehicle
+SPEED_INTERFACE IVehicle
 {
 public:
 	virtual void _PADDING();

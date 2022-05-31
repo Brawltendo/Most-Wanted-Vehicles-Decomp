@@ -1,4 +1,4 @@
-#include "physics/physicsinfo.h"
+#include "physics/physicsinfo.hpp"
 
 #include "math/mathcommon.h"
 
