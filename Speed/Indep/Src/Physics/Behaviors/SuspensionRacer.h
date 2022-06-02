@@ -17,6 +17,9 @@
 #include "physics/common/average.h"
 
 // Globals
+
+// only the first steering remap table is actually used, the rest are HP2/UG1/UG2 leftovers
+
 static float JoystickInputToSteerRemap1[] = 
 {
 	-1.f, -0.712f, -0.453f, -0.303f, -0.216f, -0.148f, -0.116f, -0.08f, -0.061f, -0.034f,

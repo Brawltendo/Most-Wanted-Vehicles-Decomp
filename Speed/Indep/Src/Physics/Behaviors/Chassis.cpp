@@ -7,14 +7,11 @@
 #include "interfaces/simables/ivehicle.h"
 #include "interfaces/simentities/iplayer.h"
 
+// math
 #include "math/bmath.h"
 #include "math/mathcommon.h"
-#include "physics/physicsinfo.hpp"
-#include "Sim/Simulation.h"
 
-float _SimTime;
-SPEED_NO_INLINE float Sim_GetTime() { return _SimTime; }
-void ScaleVector(const UMath::Vector3& in, const float scale, UMath::Vector3& dest);
+#include "physics/physicsinfo.hpp"
 
 // MATCHING
 float Chassis::ComputeMaxSlip(const Chassis::State& state)

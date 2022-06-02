@@ -37,7 +37,6 @@
 # Excluded directories/files
 .vscode
 speed/shader
-speed/indep/src/sound
 speed/indep/src/matching_test.cpp
 speed/indep/src/compile_and_gen_asm.bat
 speed/indep/src/devenv_setup.bat
