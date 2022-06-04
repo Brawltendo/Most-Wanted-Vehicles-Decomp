@@ -44,9 +44,15 @@ struct GinsuDataLayout
 class GinsuSynthData
 {
 public:
+	GinsuSynthData();
 	virtual ~GinsuSynthData();
 	void DecodeBlock(int block);
 	bool BindToData(void* ptr);
+	int FrequencyToSample(float freq);
+	int CycleToSample(float cycle);
+	float CyclePeriod(float cycle);
+	float SampleToCycle(int sample);
+	bool GetSamples(int startSample, int numSamples, short* dest);
 
 private:
 	float mMinFrequency;

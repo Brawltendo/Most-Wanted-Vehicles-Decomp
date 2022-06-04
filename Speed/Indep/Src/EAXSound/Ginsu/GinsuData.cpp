@@ -1,8 +1,11 @@
 #include "EAXSound/Ginsu/GinsuData.h"
 #include "EAXSound/Ginsu/Ginsu.h"
+#include "EAXSound/Ginsu/GinsuHelper.h"
 
 
-// <@>PRINT_ASM
+// FUNCTIONAL MATCH
+// the loop in this function is very stubborn to byte match since MSVC unrolls it (and it doesn't wanna unroll it the same way)
+// all the code produces the same result as the original game though
 void GinsuSynthData::DecodeBlock(int block)
 {
 	// Each block of XAS v0 encoded data is 19 bytes long, and gets decoded to 32 floating-point samples
@@ -34,6 +37,17 @@ void GinsuSynthData::DecodeBlock(int block)
 		out[1] = (xatablef[shift][s1] + (f1 * out[-1])) + (f0 * out[+0]);
 		out += 2;
 	}
+}
+
+// MATCHING
+GinsuSynthData::GinsuSynthData()
+{
+	mMinFrequency = 0.f;
+	mMaxFrequency = 0.f;
+	mSegCount = 0;
+	mCycleCount = 0;
+	mSampleCount = 0;
+	mSampleRate = 0;
 }
 
 // MATCHING
@@ -81,4 +95,170 @@ bool GinsuSynthData::BindToData(void* ptr)
 		// data binding failed
 		return false;
 	}
+}
+
+// MATCHING
+int GinsuSynthData::FrequencyToSample(float freq)
+{
+	int samp;
+	if (mSegCount < 1)
+	{
+		samp = 0;
+	}
+	else if (freq <= mMinFrequency)
+	{	
+		samp = mFreqPos[0];
+	}
+	else if (freq >= mMaxFrequency)
+	{
+		samp = mFreqPos[mSegCount];
+	}
+	else
+	{
+		float seg = (freq - mMinFrequency) * mSegCount / (mMaxFrequency - mMinFrequency);
+		int i = IntFloor(seg);
+		float a = mFreqPos[i+1] - mFreqPos[i];
+		samp = IntRound(a * (seg - i) + mFreqPos[i]);
+	}
+	return samp;
+}
+
+// MATCHING
+int GinsuSynthData::CycleToSample(float cycle)
+{
+	int samp;
+	if (mCycleCount < 1)
+	{
+		samp = 0;
+	}
+	else if (cycle <= 0.f)
+	{	
+		samp = mCyclePos[0];
+	}
+	else if (mCycleCount <= cycle)
+	{
+		samp = mCyclePos[mCycleCount];
+	}
+	else
+	{
+		int i = IntFloor(cycle);
+		float a = mCyclePos[i+1] - mCyclePos[i];
+		samp = IntRound(a * (cycle - i) + mCyclePos[i]);
+	}
+	return samp;
+}
+
+// MATCHING
+float GinsuSynthData::CyclePeriod(float cycle)
+{
+	// can't have less than one cycle
+	if (mCycleCount < 1)
+	{
+    	return 0.f;
+	}
+	else
+	{
+		float startPeriod;
+		float endPeriod;
+		int i = IntFloor(cycle);
+		if (i < 1)
+		{
+			if (i < 0)
+			{
+				cycle = 0.f;
+				i = 0;
+			}
+			startPeriod = (mCyclePos[1] - mCyclePos[0]);
+			endPeriod   = (mCyclePos[2] - mCyclePos[0]) * 0.5f;
+		}
+		else
+		{
+			if (i >= mCycleCount - 1)
+			{
+				if (i >= mCycleCount)
+				{
+					i = mCycleCount - 1;
+					cycle = mCycleCount;
+				}
+				startPeriod = (mCyclePos[mCycleCount] - mCyclePos[mCycleCount-2]) * 0.5f;
+				endPeriod   = (mCyclePos[mCycleCount] - mCyclePos[mCycleCount-1]);
+			}
+			else
+			{
+				startPeriod = (mCyclePos[i+1] - mCyclePos[i-1]) * 0.5f;
+				endPeriod   = (mCyclePos[i+2] - mCyclePos[i]) * 0.5f;
+			}
+		}
+		return startPeriod + (cycle - i) * (endPeriod - startPeriod);
+	}
+}
+
+// MATCHING
+float GinsuSynthData::SampleToCycle(int sample)
+{
+	
+	if (mCycleCount < 1)
+		return 0.f;
+	if (sample <= mCyclePos[0])
+		return 0.f;
+	if (sample >= mCyclePos[mCycleCount])
+		return mCycleCount;
+
+	int low = 0;
+	int high = mCycleCount;
+	int guess = 0;
+	int* currCycleSamp = NULL;
+	for (;;)
+	{
+		int cycle = 0;
+		for (;;)
+		{
+			float s1 = static_cast<float>(sample - mCyclePos[low]) 
+					 / static_cast<float>(mCyclePos[high] - mCyclePos[low]) 
+					 * static_cast<float>(high - low);
+			guess = IntFloor(s1) + low;
+			currCycleSamp = &mCyclePos[guess];
+			cycle = currCycleSamp[0];
+			if (sample >= currCycleSamp[0])
+				break;
+			
+			float s2 = static_cast<float>(cycle - sample) / mMinPeriod;
+			int newLow = guess - IntCeil(s2);
+			if (newLow > low)
+				low = newLow;
+			high = guess;
+		}
+
+		if (sample < currCycleSamp[1])
+			break;
+		
+		low = guess + 1;
+		int newHigh = guess + IntCeil(static_cast<float>(sample - cycle) / mMinPeriod) + 1;
+		if (newHigh < high)
+			high = newHigh;
+	}
+	return (static_cast<float>(sample) - mCyclePos[guess]) / (static_cast<float>(mCyclePos[guess+1]) - mCyclePos[guess]) + guess;
+}
+
+// MATCHING
+// <@>PRINT_ASM
+bool GinsuSynthData::GetSamples(int startSample, int numSamples, short* dest)
+{
+	if (startSample < 0 || startSample + numSamples - 1 >= mSampleCount)
+		return false;
+	if (startSample >> 5 != mCurrentBlock)
+		GinsuSynthData::DecodeBlock(startSample >> 5);
+	int index = startSample & 0x1F;
+	for (int i = 0; i < numSamples; ++i)
+	{
+		int endSample = convertsample(mSample[index]);
+		++index;
+		dest[i] = endSample;
+		if (index == 0x20)
+		{
+			DecodeBlock(mCurrentBlock + 1);
+			index = 0;
+		}
+	}
+	return true;
 }
