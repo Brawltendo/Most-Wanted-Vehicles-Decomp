@@ -1,7 +1,5 @@
 #pragma once
 #include "speedcommon.h"
-#include <math.h>
-#include <cmath>
 
 
 /*
@@ -66,6 +64,6 @@ short convertsample(float x)
 		fistp word ptr val // store (short)x in val
 	}
 	if ((unsigned short)val == 0x8000)
-		return ((*(unsigned int*)&x >> 31) + 0x7FFF); // type pun to get the sign bit
+		return (*(unsigned int*)&x >> 31) + 0x7FFF; // type pun to get the sign bit
 	return val;
 }

@@ -45,6 +45,12 @@ class GinsuSynthData
 {
 public:
 	GinsuSynthData();
+
+	// Getters
+	float GetMinFrequency() { return mMinFrequency; }
+	float GetMaxFrequency() { return mMaxFrequency; }
+	int GetSampleRate() { return mSampleRate; }
+
 	virtual ~GinsuSynthData();
 	void DecodeBlock(int block);
 	bool BindToData(void* ptr);

@@ -254,7 +254,7 @@ bool GinsuSynthData::GetSamples(int startSample, int numSamples, short* dest)
 		int endSample = convertsample(mSample[index]);
 		++index;
 		dest[i] = endSample;
-		if (index == 0x20)
+		if (index == BLOCKSIZE_SAMPLES)
 		{
 			DecodeBlock(mCurrentBlock + 1);
 			index = 0;
