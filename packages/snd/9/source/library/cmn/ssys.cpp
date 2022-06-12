@@ -1,4 +1,5 @@
-#include "packages\snd\9\source\library\cmn\ssys.h"
+#include "packages/snd/9/source/library/cmn/ssys.h"
+#include "packages/snd/9/source/library/cmn/sndgs.h"
 
 
 void Snd::DefaultMutexLockFn()
@@ -17,16 +18,15 @@ extern "C"
 {
 #endif
 
-char mutexLocked = 0;
 void SNDSYS_entercritical()
 {
 	Snd::gMutexLockFn();
-	++mutexLocked;
+	++sndgs.incritical;
 }
 
 void SNDSYS_leavecritical()
 {
-	--mutexLocked;
+	--sndgs.incritical;
 	Snd::gMutexUnlockFn();
 }
 

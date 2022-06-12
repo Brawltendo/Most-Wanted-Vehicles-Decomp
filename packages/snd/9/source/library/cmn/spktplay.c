@@ -1,14 +1,14 @@
 #include "packages/snd/9/source/library/cmn/spktplay.h"
+#include "packages/snd/9/source/library/cmn/sndgs.h"
 
 
-char unk_spktplay_var = 1;
 int SNDPKTPLAY_submit(int packetinstancehandle, struct SNDPACKET* psp)
 {
 	struct SNDPACKETCHAN* ppchan;
 	struct SNDPACKETENTRY* pentry;
 	int packethandle = 0;
 
-	if (unk_spktplay_var == 0)
+	if (!sndgs.installed)
 		return -10;
 
 	ppchan = spktchannels[packetinstancehandle];

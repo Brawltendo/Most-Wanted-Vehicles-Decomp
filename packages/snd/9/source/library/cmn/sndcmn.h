@@ -87,5 +87,41 @@ struct SNDPACKET
 	void* psamples[6];
 };
 
+typedef struct SNDUSERDATACBINFO
+{
+	int type;
+	void* pdata;
+	int size;
+	int shandle;
+	int sndstrmrequest;
+};
+
+typedef struct TAGGEDPATCH
+{
+	short id;
+	unsigned char platform;
+	unsigned char flags;
+	int hdrsize;
+};
+
+typedef struct BANKVER5
+{
+	int id;
+	unsigned char ver;
+	char resolved;
+	unsigned short numpatches;
+	int hdrsize;
+	int spusize;
+	int iopcpusize;
+	struct TAGGEDPATCH patch[512];
+};
+
+typedef struct BANKLIST
+{
+	struct BANKVER5* phdr;
+	void* pspuram;
+	signed char locked;
+	char pad[3];
+};
 
 struct SNDPACKETCHAN* spktchannels[31];
