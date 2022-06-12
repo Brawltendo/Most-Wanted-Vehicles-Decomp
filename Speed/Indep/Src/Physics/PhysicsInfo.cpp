@@ -1,6 +1,7 @@
 #include "physics/physicsinfo.hpp"
 
 #include "math/mathcommon.h"
+#include "Speed/Indep/Tools/Inc/ConversionUtil.hpp"
 
 
 // MATCHING
@@ -90,4 +91,9 @@ float Physics::Info::Speedometer(const Attrib::Gen::transmission& transmission, 
 float Physics::Info::Torque(const Attrib::Gen::engine& engine, const float atRPM)
 {
 	return 0.f;
+}
+
+bool Physics::Info::EstimatePerformance(Physics::Info::Performance& perf)
+{
+	;
 }

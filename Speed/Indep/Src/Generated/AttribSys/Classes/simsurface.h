@@ -28,11 +28,11 @@ struct simsurface
     char pad_0000[8];
     struct LayoutStruct
     {
-        Collection _Array_TireDriveEffects;
+        Private _Array_TireDriveEffects;
         TireEffectRecord TireDriveEffects[3];
-        Collection _Array_TireSlideEffects;
+        Private _Array_TireSlideEffects;
         TireEffectRecord TireSlideEffects[3];
-        Collection _Array_TireSlipEffects;
+        Private _Array_TireSlipEffects;
         TireEffectRecord TireSlipEffects[3];
         RoadNoiseRecord RenderNoise;
         char *CollectionName;

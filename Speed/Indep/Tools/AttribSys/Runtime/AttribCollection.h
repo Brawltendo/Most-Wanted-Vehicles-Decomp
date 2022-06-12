@@ -1,17 +1,27 @@
 #pragma once
 #include "speedcommon.h"
+#include "Speed/indep/Tools/AttribSys/Runtime/Common/AttribHashMap.h"
 
 
 namespace Attrib
 {
     
-struct Collection
+class Collection
 {
-	int16_t Capacity;
-	int16_t Count;
-	char pad_0004[4];
+public:
+	class Node* GetNode(uint32_t attributeKey, const Collection*& container);
+	void* GetData(uint32_t attributeKey, uint32_t index);
 
-	int GetLength();
+private:
+	HashMap mTable;
+	const Collection* mParent;
+	class Class* mClass;
+	void* mLayout;
+	uint32_t mRefCount;
+	uint32_t mKey;
+	class Vault* mSource;
+	const char* mNamePtr;
+
 };
 
 } // namespace Attrib

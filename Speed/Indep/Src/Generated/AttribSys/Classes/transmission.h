@@ -10,11 +10,11 @@ struct transmission : Instance
 {
     struct LayoutStruct
     {
-        Collection _Array_GEAR_RATIO;
+        Private _Array_GEAR_RATIO;
         float GEAR_RATIO[9];
-        Collection _Array_DIFFERENTIAL;
+        Private _Array_DIFFERENTIAL;
         float DIFFERENTIAL[3];
-        Collection _Array_GEAR_EFFICIENCY;
+        Private _Array_GEAR_EFFICIENCY;
         float GEAR_EFFICIENCY[9];
         float TORQUE_CONVERTER;
         float TORQUE_SPLIT;

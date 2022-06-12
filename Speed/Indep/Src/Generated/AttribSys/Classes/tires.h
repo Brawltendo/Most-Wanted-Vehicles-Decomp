@@ -11,7 +11,7 @@ struct tires : Instance
 {
     struct LayoutStruct
     {
-        Collection _Array_YAW_CONTROL;
+        Private _Array_YAW_CONTROL;
         float YAW_CONTROL[4];
         AxlePair GRIP_SCALE;
         AxlePair DYNAMIC_GRIP;

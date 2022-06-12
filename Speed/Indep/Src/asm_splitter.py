@@ -82,12 +82,12 @@ with open(args.name + '_orig.asm', 'w') as outAsm:
 					newLine.append(format(jmpAddr - int(args.addr[0], 16), '08X'))
 					hasJmpInst = True
 
-		if 'h' in instData and '[' in instData and '+' in instData and ']' in instData:
-			newLine.append(FixUpOffsets(instData, '+'))
-		elif 'h' in instData and '[' in instData and '-' in instData and ']' in instData:
-			newLine.append(FixUpOffsets(instData, '-'))
-		elif not hasJmpInst:
-		#if not hasJmpInst:
+		#if 'h' in instData and '[' in instData and '+' in instData and ']' in instData:
+		#	newLine.append(FixUpOffsets(instData, '+'))
+		#elif 'h' in instData and '[' in instData and '-' in instData and ']' in instData:
+		#	newLine.append(FixUpOffsets(instData, '-'))
+		#elif not hasJmpInst:
+		if not hasJmpInst:
 			newLine.append(instData)
 
 		outAsm.write("".join(newLine) + '\n')

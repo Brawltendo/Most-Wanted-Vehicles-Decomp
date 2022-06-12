@@ -10,11 +10,11 @@ struct engine : Instance
 {
     struct LayoutStruct
     {
-        Collection _Array_TORQUE;
+        Private _Array_TORQUE;
 		float TORQUE[9];
-		Collection _Array_SPEED_LIMITER;
+		Private _Array_SPEED_LIMITER;
 		float SPEED_LIMITER[2];
-		Collection _Array_ENGINE_BRAKING;
+		Private _Array_ENGINE_BRAKING;
 		float ENGINE_BRAKING[3];
 		float FLYWHEEL_MASS;
 		float MAX_RPM;

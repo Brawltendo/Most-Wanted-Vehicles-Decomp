@@ -1,7 +1,10 @@
 #pragma once
 #include "speedcommon.h"
-#include "Speed/indep/Tools/AttribSys/Runtime/AttribCollection.h"
 
+
+namespace UTL { namespace COM {
+	class IUnknown;
+}}
 
 namespace Attrib
 {
@@ -9,13 +12,20 @@ namespace Attrib
 struct Instance
 {
 	void* GetLayoutPointer() { return mLayoutPtr; }
+	void* GetAttributePointer(uint32_t attribkey, uint32_t index);
 	
-	class IUnknown* mOwner;
-	Collection* const mCollection;
+	class UTL::COM::IUnknown* mOwner;
+	class Collection* const mCollection;
 	void* mLayoutPtr;
 	uint32_t mMsgPort;
 	uint16_t mFlags;
 	uint16_t mLocks;
+
+	enum Flags
+	{
+		kDynamic = 1
+	};
+
 };
 
 } // namespace Attrib
