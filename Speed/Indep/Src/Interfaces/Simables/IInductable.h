@@ -1,0 +1,14 @@
+#pragma once
+#include "physics/physicstypes.h"
+#include "Speed/Indep/Libs/Support/Utility/UCOM.h"
+
+
+class IInductable : public UTL::COM::IUnknown
+{
+public:
+	virtual void _PADDING();
+    virtual eInductionType InductionType();
+    virtual float InductionSpool();
+    virtual float GetInductionPSI();
+    virtual float GetMaxInductionPSI();
+};

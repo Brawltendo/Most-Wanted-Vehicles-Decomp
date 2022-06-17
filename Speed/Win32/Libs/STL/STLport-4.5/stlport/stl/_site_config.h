@@ -8,7 +8,7 @@
  * multithreading support. Synonym is _NOTHREADS
  */
 // #define _NOTHREADS
-// #define _STLP_NO_THREADS
+#define _STLP_NO_THREADS
 
 /* _PTHREADS: if defined, use Posix threads for multithreading support. */
 // #define _PTHREADS

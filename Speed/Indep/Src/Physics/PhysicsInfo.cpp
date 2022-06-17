@@ -3,6 +3,8 @@
 #include "math/mathcommon.h"
 #include "Speed/Indep/Tools/Inc/ConversionUtil.hpp"
 
+#include "Speed/Indep/Tools/AttribSys/Runtime/AttribHash32.h"
+
 
 // MATCHING
 float Physics::Info::AerodynamicDownforce(const Attrib::Gen::chassis& chassis, const float speed)
@@ -22,7 +24,7 @@ float Physics::Info::EngineInertia(const Attrib::Gen::engine& engine, const bool
 }
 
 // MATCHING
-Physics::Info::eInductionType Physics::Info::InductionType(const Attrib::Gen::induction& induction)
+eInductionType Physics::Info::InductionType(const Attrib::Gen::induction& induction)
 {
 	if (((Attrib::Gen::induction&)induction).HIGH_BOOST() > 0.f || ((Attrib::Gen::induction&)induction).LOW_BOOST() > 0.f)
 	{
@@ -63,7 +65,6 @@ float Physics::Info::WheelDiameter(const Attrib::Gen::tires& tires, bool front)
 }
 
 // MATCHING
-// <@>PRINT_ASM
 float Physics::Info::Speedometer(const Attrib::Gen::transmission& transmission, const Attrib::Gen::engine& engine, const Attrib::Gen::tires& tires, float rpm, GearID gear, const Tunings* tunings)
 {
 	float speed = 0.f;
@@ -93,7 +94,10 @@ float Physics::Info::Torque(const Attrib::Gen::engine& engine, const float atRPM
 	return 0.f;
 }
 
+Attrib::Gen::engine* engine;
+// <@>PRINT_ASM
 bool Physics::Info::EstimatePerformance(Physics::Info::Performance& perf)
 {
-	;
+const uint32_t hash = Attrib::StringHash32("junkman_current");
+	return *reinterpret_cast<bool*>(engine->GetAttributePointer(hash, 0));
 }

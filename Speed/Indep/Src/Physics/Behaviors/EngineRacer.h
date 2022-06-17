@@ -1,22 +1,41 @@
 #pragma once
 // attribs
-#include "generated/attribsys/classes/engine.h"
-#include "generated/attribsys/classes/induction.h"
-#include "generated/attribsys/classes/nos.h"
-#include "generated/attribsys/classes/tires.h"
-#include "generated/attribsys/classes/transmission.h"
+#include "Generated/AttribSys/Classes/engine.h"
+#include "Generated/AttribSys/Classes/induction.h"
+#include "Generated/AttribSys/Classes/nos.h"
+#include "Generated/AttribSys/Classes/tires.h"
+#include "Generated/AttribSys/Classes/transmission.h"
 
 // interfaces/inheritance
-#include "interfaces/itaskable.h"
-#include "interfaces/simables/iengine.h"
-#include "interfaces/simables/itransmission.h"
-#include "interfaces/simables/ivehicle.h"
+#include "Physics/VehicleBehaviors.h"
+#include "Interfaces/IAttributeable.h"
+#include "Interfaces/Simables/IEngine.h"
+#include "Interfaces/Simables/IEngineDamage.h"
+#include "Interfaces/Simables/IInductable.h"
+#include "Interfaces/Simables/ITiptronic.h"
+#include "Interfaces/Simables/ITransmission.h"
 
-#include "physics/physicstypes.h"
+#include "Physics/PhysicsTypes.h"
 
-class EngineRacer : Sim::ITaskable, IVehicle, ITransmission, IEngine 
+class EngineRacer : protected VehicleBehavior, 
+					protected ITransmission, 
+					protected IEngine, 
+					public IAttributeable, 
+					public IInductable, 
+					public ITiptronic,
+					public IRaceEngine,
+					public IEngineDamage
 {
-private:
+public:
+	virtual bool IsEngineBraking();
+	virtual bool IsShiftingGear();
+	virtual ShiftStatus OnGearChange(GearID gear);
+	virtual bool UseRevLimiter();
+	virtual void DoECU();
+	float CalcSpeedometer(float rpm, uint32_t gear);
+	float GetMaxSpeedometer();
+	float GetSpeedometer();
+
 	float GetBrakingTorque(float engine_torque, float rpm);
 	uint32_t GetNumGearRatios();
 	float GetGearRatio(uint32_t idx);
@@ -27,10 +46,11 @@ private:
 	bool RearWheelDrive();
 	bool FrontWheelDrive();
 	float GetDifferentialAngularVelocity(bool locked);
+	float GetDriveWheelSlippage();
 	void SetDifferentialAngularVelocity(float w);
 	void LimitFreeWheels(float w);
 
-	int pad[0x64 / 0x4];
+private:
 	float mDriveTorque;
 	GearID mGear;
 	float mGearShiftTimer;
@@ -90,10 +110,6 @@ private:
 	float mBlown;
 	float mSabotage;
 	int gap158;
-
-public:
-	// interface functions will go here
-	float GetMaxSpeedometer();
 
 };
 //const int offset = offsetof(EngineRacer, mTrannyInfo);

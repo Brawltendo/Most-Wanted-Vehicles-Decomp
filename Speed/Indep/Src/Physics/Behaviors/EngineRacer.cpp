@@ -1,12 +1,38 @@
-#include "physics/behaviors/engineracer.h"
+#include "Physics/Behaviors/EngineRacer.h"
 
-#include "math/bmath.h"
-#include "math/mathcommon.h"
-#include "physics/physicsinfo.hpp"
+#include "Math/bMath.h"
+#include "Math/mathcommon.h"
+#include "Physics/PhysicsInfo.hpp"
 
-#include "interfaces/simables/ISuspension.h"
+#include "Interfaces/Simables/ISuspension.h"
+#include "Interfaces/Simables/IVehicle.h"
 
 
+//-------------------------------------------------------------------------------------
+// MATCHING
+bool EngineRacer::IsEngineBraking()
+{
+	return mEngineBraking;
+}
+
+
+//-------------------------------------------------------------------------------------
+// MATCHING
+bool EngineRacer::IsShiftingGear()
+{
+	return mGearShiftTimer > 0.f;
+}
+
+
+//-------------------------------------------------------------------------------------
+// MATCHING
+bool EngineRacer::UseRevLimiter()
+{
+	return true;
+}
+
+
+//-------------------------------------------------------------------------------------
 // MATCHING
 float EngineRacer::GetBrakingTorque(float engine_torque, float rpm)
 {
@@ -29,30 +55,119 @@ float EngineRacer::GetBrakingTorque(float engine_torque, float rpm)
 		return -(engine_torque * mEngineInfo.ENGINE_BRAKING(0));
 }
 
+
+//-------------------------------------------------------------------------------------
+// MATCHING
+EngineRacer::Clutch::Clutch()
+{
+    mState = ENGAGED;
+    mTime = 0.f;
+	mEngageTime = 0.f;
+}
+
+
+//-------------------------------------------------------------------------------------
+// MATCHING
+void EngineRacer::Clutch::Disengage()
+{
+	if (mState == ENGAGED)
+		mState = DISENGAGED;
+}
+
+
+//-------------------------------------------------------------------------------------
+// MATCHING
+void EngineRacer::Clutch::Engage(float time)
+{
+	if (mState == DISENGAGED)
+	{
+		if (time > 0.f)
+			mState = ENGAGING;
+		else
+			mState = ENGAGED;
+		mTime = time;
+		mEngageTime = time;
+	}
+}
+
+
+//-------------------------------------------------------------------------------------
+// MATCHING
+void EngineRacer::Clutch::Reset()
+{
+	mState = ENGAGED;
+	mTime = 0.f;
+}
+
+
+//-------------------------------------------------------------------------------------
+// MATCHING
+float EngineRacer::Clutch::Update(float dT)
+{
+	if (mTime > 0.f)
+	{
+		mTime -= dT;
+		// engage the clutch when the timer hits or drops below zero
+		if (mTime <= 0.f && (mState - 1) == ENGAGED)
+			mState = ENGAGED;
+	}
+
+	// return clutch ratio
+	switch (mState)
+	{
+		case ENGAGED:
+			return 1.f;
+		case ENGAGING:
+			return 1.f - UMath::Ramp(mTime, 0.f, mEngageTime) * 0.75f;
+		case DISENGAGED:
+			return 0.25f;
+		default:
+			return 1.f;
+	}
+}
+
+
+//-------------------------------------------------------------------------------------
+// MATCHING
+EngineRacer::Clutch::State EngineRacer::Clutch::GetState()
+{
+	return mState;
+}
+
+
+//-------------------------------------------------------------------------------------
 // MATCHING
 uint32_t EngineRacer::GetNumGearRatios()
 {
 	return mTrannyInfo.Num_GEAR_RATIO();
 }
 
+
+//-------------------------------------------------------------------------------------
 // MATCHING
 float EngineRacer::GetGearRatio(uint32_t idx)
 {
 	return mTrannyInfo.GEAR_RATIO(idx);
 }
 
+
+//-------------------------------------------------------------------------------------
 // MATCHING
 float EngineRacer::GetGearEfficiency(uint32_t idx)
 {
 	return mTrannyInfo.GEAR_EFFICIENCY(idx);
 }
 
+
+//-------------------------------------------------------------------------------------
 // MATCHING
 float EngineRacer::GetFinalGear()
 {
 	return mTrannyInfo.FINAL_GEAR();
 }
 
+
+//-------------------------------------------------------------------------------------
 // MATCHING
 float EngineRacer::GetRatioChange(uint32_t from, uint32_t to)
 {
@@ -65,66 +180,49 @@ float EngineRacer::GetRatioChange(uint32_t from, uint32_t to)
 		return 0.f;
 }
 
+
+//-------------------------------------------------------------------------------------
 // MATCHING
 float EngineRacer::GetShiftDelay(uint32_t gear)
 {
 	return mTrannyInfo.SHIFT_SPEED() * mTrannyInfo.GEAR_RATIO(gear);
 }
 
+
+//-------------------------------------------------------------------------------------
 // MATCHING
 bool EngineRacer::RearWheelDrive()
 {
 	return mTrannyInfo.TORQUE_SPLIT() < 1.f;
 }
 
+
+//-------------------------------------------------------------------------------------
 // MATCHING
 bool EngineRacer::FrontWheelDrive()
 {
 	return mTrannyInfo.TORQUE_SPLIT() > 0.f;
 }
 
-// NOT MATCHING
-void EngineRacer::LimitFreeWheels(float w)
+
+//-------------------------------------------------------------------------------------
+// MATCHING
+ShiftStatus EngineRacer::OnGearChange(GearID gear)
 {
-	uint32_t numwheels = mSuspension->GetNumWheels();
-	for (uint32_t i = 0; i < numwheels; ++i)
-	{
-		if (!mSuspension->IsWheelOnGround(i))
-		{
-			if (i < 2)
-			{
-				if (!FrontWheelDrive())
-					continue;
-			}
-			else if (!RearWheelDrive())
-				continue;
-			
-			float ww = mSuspension->GetWheelAngularVelocity(i);
-			float ww_final = ww;
-			if (ww * w < 0.f)
-				ww = 0.f;
-			else if (ww > 0.f)
-			{
-				/* if (ww < w);
-				else
-					ww = w; */
-				//ww = ww < w ? w : ww;
-				ww = UMath::Min(ww, w);
-			}
-			else if (ww < 0.f)
-			{
-				if (ww > w)
-					ww = w;
-				//ww = ww > w ? w : ww;
-				//ww = UMath::Max(ww, w);
-			}
-			/* else if ((ww > 0.f && ww < w) || (ww < 0.f && ww > w))
-				ww = w; */
-			mSuspension->SetWheelAngularVelocity(i, ww);
-		}
-	}
+	if (gear >= mTrannyInfo.Num_GEAR_RATIO())
+		return SHIFT_STATUS_NONE;
+	// new gear can't be the same as the old one
+	if (gear == mGear || gear < G_REVERSE)
+		return SHIFT_STATUS_NONE;
+
+	mGearShiftTimer = gear < mGear ? (GetShiftDelay(gear) * 0.25f) : GetShiftDelay(gear);
+	mGear = gear;
+	mClutch.Disengage();
+	return SHIFT_STATUS_NORMAL;
 }
 
+
+//-------------------------------------------------------------------------------------
 // MATCHING
 float EngineRacer::GetDifferentialAngularVelocity(bool locked)
 {
@@ -186,12 +284,36 @@ float EngineRacer::GetDifferentialAngularVelocity(bool locked)
 	return into_gearbox;
 }
 
+
+//-------------------------------------------------------------------------------------
+// MATCHING
+// <@>PRINT_ASM
+float EngineRacer::GetDriveWheelSlippage()
+{
+	float retval = 0.f;
+	int drivewheels = 0;
+	if (RearWheelDrive())
+	{
+		drivewheels += 2;
+		retval += mSuspension->GetWheelSlip(TIRE_RR) + mSuspension->GetWheelSlip(TIRE_RL);
+	}
+	if (FrontWheelDrive())
+	{
+		drivewheels += 2;
+		retval += mSuspension->GetWheelSlip(TIRE_FR) + mSuspension->GetWheelSlip(TIRE_FL);
+	}
+
+	return retval / (float)drivewheels;;
+}
+
+
+//-------------------------------------------------------------------------------------
 // MATCHING
 void EngineRacer::SetDifferentialAngularVelocity(float w)
 {
 	float current = GetDifferentialAngularVelocity(0);
 	float diff = w - current;
-	IVehicle* vehicle = (IVehicle*)(pad[0x38 / 0x4]);
+	IVehicle* vehicle = mVehicle;
 	float speed = MPS2MPH(vehicle->GetAbsoluteSpeed());
 	int lockdiff = speed < 40.f;
 	if (RearWheelDrive())
@@ -224,74 +346,106 @@ void EngineRacer::SetDifferentialAngularVelocity(float w)
 	}
 }
 
+
+//-------------------------------------------------------------------------------------
 // MATCHING
-EngineRacer::Clutch::Clutch()
+float EngineRacer::CalcSpeedometer(float rpm, uint32_t gear)
 {
-    mState = ENGAGED;
-    mTime = 0.f;
-	mEngageTime = 0.f;
+	Physics::Tunings* tunings = mVehicle->GetTunings();
+	return Physics::Info::Speedometer(
+		   mTrannyInfo, 
+		   mEngineInfo, 
+		   mTireInfo, 
+		   rpm,
+		   (GearID)gear,
+		   tunings);
 }
 
-// MATCHING
-void EngineRacer::Clutch::Disengage()
-{
-	if (mState == ENGAGED)
-		mState = DISENGAGED;
-}
 
+//-------------------------------------------------------------------------------------
 // MATCHING
-void EngineRacer::Clutch::Engage(float time)
+float EngineRacer::GetMaxSpeedometer()
 {
-	if (mState == DISENGAGED)
+	uint32_t num_ratios = mTrannyInfo.Num_GEAR_RATIO();
+	if (num_ratios > 0)
 	{
-		if (time > 0.f)
-			mState = ENGAGING;
+		float limiter = MPH2MPS(mEngineInfo.SPEED_LIMITER(0));
+		float rpm_max = mEngineInfo.RED_LINE();
+		Physics::Tunings* tunings = mVehicle->GetTunings();
+		float max_speedometer = Physics::Info::Speedometer(
+								mTrannyInfo, 
+								mEngineInfo, 
+								mTireInfo, 
+								rpm_max,
+								(GearID)(num_ratios - 1),
+								tunings);
+		if (limiter > 0.f && !(max_speedometer < limiter))
+			return limiter;
 		else
-			mState = ENGAGED;
-		mTime = time;
-		mEngageTime = time;
+			return max_speedometer;
 	}
+	else
+		return 0.f;
 }
 
+
+//-------------------------------------------------------------------------------------
 // MATCHING
-void EngineRacer::Clutch::Reset()
+float EngineRacer::GetSpeedometer()
 {
-	mState = ENGAGED;
-	mTime = 0.f;
+	return CalcSpeedometer(RPS2RPM(mTransmissionVelocity), mGear);
 }
 
-// MATCHING
-float EngineRacer::Clutch::Update(float dT)
+
+//-------------------------------------------------------------------------------------
+// NOT MATCHING
+void EngineRacer::LimitFreeWheels(float w)
 {
-	if (mTime > 0.f)
+	uint32_t numwheels = mSuspension->GetNumWheels();
+	for (uint32_t i = 0; i < numwheels; ++i)
 	{
-		mTime -= dT;
-		// engage the clutch when the timer hits or drops below zero
-		if (mTime <= 0.f && (mState - 1) == ENGAGED)
-			mState = ENGAGED;
-	}
-
-	// return clutch ratio
-	switch (mState)
-	{
-		case ENGAGED:
-			return 1.f;
-		case ENGAGING:
-			return 1.f - UMath::Ramp(mTime, 0.f, mEngageTime) * 0.75f;
-		case DISENGAGED:
-			return 0.25f;
-		default:
-			return 1.f;
+		if (!mSuspension->IsWheelOnGround(i))
+		{
+			if (i < 2)
+			{
+				if (!FrontWheelDrive())
+					continue;
+			}
+			else if (!RearWheelDrive())
+				continue;
+			
+			float ww = mSuspension->GetWheelAngularVelocity(i);
+			float ww_final = ww;
+			if (ww * w < 0.f)
+				ww = 0.f;
+			else if (ww > 0.f)
+			{
+				/* if (ww < w);
+				else
+					ww = w; */
+				//ww = ww < w ? w : ww;
+				ww = UMath::Min(ww, w);
+			}
+			else if (ww < 0.f)
+			{
+				if (ww > w)
+					ww = w;
+				//ww = ww > w ? w : ww;
+				//ww = UMath::Max(ww, w);
+			}
+			/* else if ((ww > 0.f && ww < w) || (ww < 0.f && ww > w))
+				ww = w; */
+			mSuspension->SetWheelAngularVelocity(i, ww);
+		}
 	}
 }
 
-// MATCHING
-EngineRacer::Clutch::State EngineRacer::Clutch::GetState()
-{
-	return mState;
-}
 
+//-------------------------------------------------------------------------------------
 float SmoothRPMDecel[] = { 2.5f, 15.f };
+
+
+//-------------------------------------------------------------------------------------
 // MATCHING
 float Engine_SmoothRPM(bool is_shifting, GearID gear, float dT, float old_rpm, float new_rpm, float engine_inertia)
 {
@@ -309,29 +463,28 @@ float Engine_SmoothRPM(bool is_shifting, GearID gear, float dT, float old_rpm, f
 	return rpm * 0.55f + old_rpm * 0.45f;
 }
 
-// NOT MATCHING
-// will match with proper inheritance though so this code is correct
-// <@>PRINT_ASM
-float EngineRacer::GetMaxSpeedometer()
+
+//-------------------------------------------------------------------------------------
+// MATCHING
+void EngineRacer::DoECU()
 {
-	uint32_t num_ratios = mTrannyInfo.Num_GEAR_RATIO();
-	if (num_ratios > 0)
+	if (GetGear() > G_NEUTRAL)
 	{
+		// the speed at which the limiter starts to kick in
 		float limiter = MPH2MPS(mEngineInfo.SPEED_LIMITER(0));
-		float rpm_max = mEngineInfo.RED_LINE();
-		Physics::Tunings* tunings = GetTunings();
-		float max_speedometer = Physics::Info::Speedometer(
-								mTrannyInfo, 
-								mEngineInfo, 
-								mTireInfo, 
-								rpm_max,
-								(GearID)(num_ratios - 1),
-								tunings);
-		if (limiter > 0.f && !(max_speedometer < limiter))
-			return limiter;
-		else
-			return max_speedometer;
+		if (limiter > 0.f)
+		{
+			// the speed for the limiter to take full effect
+			float cutoff = MPH2MPS(mEngineInfo.SPEED_LIMITER(1));
+			if (cutoff > 0.f)
+			{
+				float speedometer = GetSpeedometer();
+				if (speedometer > limiter)
+				{
+					float limiter_range = speedometer - limiter;
+					mThrottle *= (1.f - UMath::Clamp(limiter_range / cutoff, 0.f, 1.f));
+				}
+			}
+		}
 	}
-	else
-		return 0.f;
 }

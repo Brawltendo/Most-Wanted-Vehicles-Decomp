@@ -7,7 +7,6 @@
 SPEED_INTERFACE ISuspension : public UTL::COM::IUnknown
 {
 public:
-	virtual void _PADDING();
     virtual float GetWheelTraction(uint32_t wheelIndex);
     virtual uint32_t GetNumWheels() { return 4; }
     virtual UMath::Vector3* GetWheelPos(uint32_t wheelIndex);

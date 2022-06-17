@@ -1,8 +1,10 @@
 #pragma once
 //#include "speedcommon.h"
 #include "physics/physicstypes.h"
+#include "Speed/Indep/Libs/Support/Utility/UCOM.h"
 
-class IEngine
+
+class IEngine : public UTL::COM::IUnknown
 {
 public:
 	virtual void _PADDING();
@@ -21,4 +23,11 @@ public:
     virtual float GetMaxHorsePower();
     virtual float GetMinHorsePower();
     virtual float GetHorsePower();
+};
+
+class IRaceEngine : public UTL::COM::IUnknown
+{
+public:
+	virtual void _PADDING();
+    virtual float GetPerfectLaunchRange(float& range);
 };

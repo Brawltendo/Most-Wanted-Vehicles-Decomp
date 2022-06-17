@@ -1,5 +1,6 @@
 #pragma once
 
+
 struct AxlePair
 {
     union {
@@ -29,6 +30,29 @@ enum DriverStyle
 {
 	STYLE_RACING,
 	STYLE_DRAG
+};
+
+enum eInductionType
+{
+	INDUCTION_NONE,
+	INDUCTION_TURBO_CHARGER,
+	INDUCTION_SUPER_CHARGER
+};
+
+enum eTireIdx
+{
+	// The front left wheel
+	TIRE_FL,
+	// The front right wheel
+	TIRE_FR,
+	// The number of wheels on the front axle
+	TIRE_MAX_FRONT = 2,
+	// The rear right wheel
+	TIRE_RR = 2,
+	// The rear left wheel
+	TIRE_RL,
+	// The total number of wheels
+	TIRE_MAX,
 };
 
 enum GearID

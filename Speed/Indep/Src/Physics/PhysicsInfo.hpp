@@ -8,18 +8,13 @@
 #include "physics/physicstypes.h"
 #include "physics/physicstunings.h"
 
+#include "Speed/Win32/Libs/STL/STLport-4.5/stlport/stl/_list.h"
+
 
 namespace Physics
 {	
 namespace Info
 {
-
-	enum eInductionType
-	{
-		INDUCTION_NONE,
-		INDUCTION_TURBO_CHARGER,
-		INDUCTION_SUPER_CHARGER
-	};
 
 	float AerodynamicDownforce(const Attrib::Gen::chassis& chassis, const float speed);
 	float EngineInertia(const Attrib::Gen::engine& engine, const bool loaded);

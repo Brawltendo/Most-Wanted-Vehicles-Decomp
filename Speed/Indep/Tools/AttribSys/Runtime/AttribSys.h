@@ -18,4 +18,17 @@ uint32_t kTypeHandlerIds[kTypeHandlerCount] =
 
 void* DefaultDataArea(uint32_t bytes);
 
+class RefSpec
+{
+public:
+	uint32_t GetClassKey() { return mClassKey; }
+	uint32_t GetCollectionKey() { return mCollectionKey; }
+
+private:
+	uint32_t mClassKey;
+	uint32_t mCollectionKey;
+	const Collection* mCollectionPtr;
+
+};
+
 } // namespace Attrib
