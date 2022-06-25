@@ -24,7 +24,7 @@ struct transmission : Instance
         float FINAL_GEAR;
     };
 
-	float& GEAR_RATIO(uint32_t index)
+	float& GEAR_RATIO(uint32_t index) const
 	{
 		LayoutStruct* const lp = (LayoutStruct*)GetLayoutPointer();
 		if (index < lp->_Array_GEAR_RATIO.GetLength())
@@ -32,12 +32,12 @@ struct transmission : Instance
 		else
 			return *(float*)DefaultDataArea(sizeof(float));
 	}
-	unsigned int Num_GEAR_RATIO()
+	unsigned int Num_GEAR_RATIO() const
 	{
 		return ((LayoutStruct*)GetLayoutPointer())->_Array_GEAR_RATIO.GetLength();
 	}
 
-	float& DIFFERENTIAL(uint32_t index)
+	float& DIFFERENTIAL(uint32_t index) const
 	{
 		LayoutStruct* const lp = (LayoutStruct*)GetLayoutPointer();
 		if (index < lp->_Array_DIFFERENTIAL.GetLength())
@@ -45,12 +45,12 @@ struct transmission : Instance
 		else
 			return *(float*)DefaultDataArea(sizeof(float));
 	}
-	unsigned int Num_DIFFERENTIAL()
+	unsigned int Num_DIFFERENTIAL() const
 	{
 		return ((LayoutStruct*)GetLayoutPointer())->_Array_DIFFERENTIAL.GetLength();
 	}
 
-	float& GEAR_EFFICIENCY(uint32_t index)
+	float& GEAR_EFFICIENCY(uint32_t index) const
 	{
 		LayoutStruct* const lp = (LayoutStruct*)GetLayoutPointer();
 		if (index < lp->_Array_GEAR_EFFICIENCY.GetLength())
@@ -58,37 +58,37 @@ struct transmission : Instance
 		else
 			return *(float*)DefaultDataArea(sizeof(float));
 	}
-	unsigned int Num_GEAR_EFFICIENCY()
+	unsigned int Num_GEAR_EFFICIENCY() const
 	{
 		return ((LayoutStruct*)GetLayoutPointer())->_Array_GEAR_EFFICIENCY.GetLength();
 	}
 
-	float& TORQUE_CONVERTER()
+	float& TORQUE_CONVERTER() const
 	{
 		return ((LayoutStruct*)GetLayoutPointer())->TORQUE_CONVERTER;
 	}
 
-	float& TORQUE_SPLIT()
+	float& TORQUE_SPLIT() const
 	{
 		return ((LayoutStruct*)GetLayoutPointer())->TORQUE_SPLIT;
 	}
 
-	float& CLUTCH_SLIP()
+	float& CLUTCH_SLIP() const
 	{
 		return ((LayoutStruct*)GetLayoutPointer())->CLUTCH_SLIP;
 	}
 
-	float& OPTIMAL_SHIFT()
+	float& OPTIMAL_SHIFT() const
 	{
 		return ((LayoutStruct*)GetLayoutPointer())->OPTIMAL_SHIFT;
 	}
 
-	float& SHIFT_SPEED()
+	float& SHIFT_SPEED() const
 	{
 		return ((LayoutStruct*)GetLayoutPointer())->SHIFT_SPEED;
 	}
 
-	float& FINAL_GEAR()
+	float& FINAL_GEAR() const
 	{
 		return ((LayoutStruct*)GetLayoutPointer())->FINAL_GEAR;
 	}

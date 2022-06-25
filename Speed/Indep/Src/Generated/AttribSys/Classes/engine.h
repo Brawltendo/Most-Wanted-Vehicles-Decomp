@@ -22,7 +22,7 @@ struct engine : Instance
 		float IDLE;
     };
 
-	float& TORQUE(uint32_t index)
+	float& TORQUE(uint32_t index) const
 	{
 		LayoutStruct* const lp = (LayoutStruct*)GetLayoutPointer();
 		if (index < lp->_Array_TORQUE.GetLength())
@@ -30,12 +30,12 @@ struct engine : Instance
 		else
 			return *(float*)DefaultDataArea(sizeof(float));
 	}
-	unsigned int Num_TORQUE()
+	unsigned int Num_TORQUE() const
 	{
 		return ((LayoutStruct*)GetLayoutPointer())->_Array_TORQUE.GetLength();
 	}
 
-	float& SPEED_LIMITER(uint32_t index)
+	float& SPEED_LIMITER(uint32_t index) const
 	{
 		LayoutStruct* const lp = (LayoutStruct*)GetLayoutPointer();
 		if (index < lp->_Array_SPEED_LIMITER.GetLength())
@@ -43,12 +43,12 @@ struct engine : Instance
 		else
 			return *(float*)DefaultDataArea(sizeof(float));
 	}
-	unsigned int Num_SPEED_LIMITER()
+	unsigned int Num_SPEED_LIMITER() const
 	{
 		return ((LayoutStruct*)GetLayoutPointer())->_Array_SPEED_LIMITER.GetLength();
 	}
 
-	float& ENGINE_BRAKING(uint32_t index)
+	float& ENGINE_BRAKING(uint32_t index) const
 	{
 		LayoutStruct* const lp = (LayoutStruct*)GetLayoutPointer();
 		if (index < lp->_Array_ENGINE_BRAKING.GetLength())
@@ -56,27 +56,27 @@ struct engine : Instance
 		else
 			return *(float*)DefaultDataArea(sizeof(float));
 	}
-	unsigned int Num_ENGINE_BRAKING()
+	unsigned int Num_ENGINE_BRAKING() const
 	{
 		return ((LayoutStruct*)GetLayoutPointer())->_Array_ENGINE_BRAKING.GetLength();
 	}
 
-	float& FLYWHEEL_MASS()
+	float& FLYWHEEL_MASS() const
 	{
 		return ((LayoutStruct*)GetLayoutPointer())->FLYWHEEL_MASS;
 	}
 
-	float& MAX_RPM()
+	float& MAX_RPM() const
 	{
 		return ((LayoutStruct*)GetLayoutPointer())->MAX_RPM;
 	}
 
-	float& RED_LINE()
+	float& RED_LINE() const
 	{
 		return ((LayoutStruct*)GetLayoutPointer())->RED_LINE;
 	}
 
-	float& IDLE()
+	float& IDLE() const
 	{
 		return ((LayoutStruct*)GetLayoutPointer())->IDLE;
 	}

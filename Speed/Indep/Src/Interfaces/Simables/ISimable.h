@@ -1,13 +1,20 @@
 #pragma once
 #include "speedcommon.h"
-//#include "interfaces/simables/irigidbody.h"
 #include "math/matrix.h"
 #include "math/vector.h"
+#include "Speed/Indep/Libs/Support/Utility/UCOM.h"
+#include "Speed/Indep/Libs/Support/Utility/UCollections.h"
 
-SPEED_INTERFACE ISimable
+
+struct HSIMABLE__
+{
+	int unused;
+};
+
+SPEED_INTERFACE ISimable : public UTL::COM::IUnknown, 
+						   public UTL::Collections::Instanceable<HSIMABLE__*, ISimable>
 {
 public:
-	virtual void _PADDING();
     virtual int GetSimableType();
     virtual void Kill();
     virtual void Attach(void*);
@@ -21,7 +28,7 @@ public:
     virtual void* GetEntity();
     virtual void* DebugObject();
     virtual int GetOwnerHandle();
-    virtual void* GetOwner();
+    virtual ISimable* GetOwner();
     virtual bool IsOwnedBy(void*);
     virtual void SetOwnerObject(void*);
     virtual void* GetAttributes();

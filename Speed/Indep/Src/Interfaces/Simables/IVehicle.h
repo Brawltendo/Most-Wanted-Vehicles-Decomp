@@ -3,11 +3,12 @@
 #include "math/vector.h"
 #include "physics/physicstunings.h"
 #include "physics/physicstypes.h"
+#include "Speed/Indep/Libs/Support/Utility/UCOM.h"
 
-SPEED_INTERFACE IVehicle
+
+SPEED_INTERFACE IVehicle : public UTL::COM::IUnknown
 {
 public:
-	virtual void _PADDING();
     virtual void* GetSimable() const;
     virtual void* GetSimable();
     virtual UMath::Vector3& GetPosition();

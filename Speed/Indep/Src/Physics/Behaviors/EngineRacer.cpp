@@ -1,11 +1,53 @@
 #include "Physics/Behaviors/EngineRacer.h"
-
-#include "Math/bMath.h"
-#include "Math/mathcommon.h"
+#include "Physics/Behaviors/PInput.h"
 #include "Physics/PhysicsInfo.hpp"
 
+// Math
+#include "Math/bMath.h"
+#include "Math/mathcommon.h"
+
+// Interfaces
+#include "Interfaces/Simables/ICheater.h"
+#include "Interfaces/Simables/ISimable.h"
 #include "Interfaces/Simables/ISuspension.h"
 #include "Interfaces/Simables/IVehicle.h"
+#include "Interfaces/SimEntities/IPlayer.h"
+
+// Events
+#include "Speed/Indep/Src/Generated/Events/EPlayerShift.h"
+
+
+//-------------------------------------------------------------------------------------
+// MATCHING
+bool EngineRacer::IsNOSEngaged()
+{
+	return mNOSEngaged >= 1.f;
+}
+
+
+//-------------------------------------------------------------------------------------
+// MATCHING
+bool EngineRacer::HasNOS()
+{
+	return mNOSInfo.NOS_CAPACITY() > 0.f && mNOSInfo.TORQUE_BOOST() > 0.f;
+}
+
+
+//-------------------------------------------------------------------------------------
+// MATCHING
+float EngineRacer::GetNOSFlowRate()
+{
+	return mNOSInfo.FLOW_RATE();
+}
+
+
+//-------------------------------------------------------------------------------------
+// MATCHING
+void EngineRacer::ChargeNOS(float charge)
+{
+	if (HasNOS())
+		mNOSCapacity = UMath::Clamp_(mNOSCapacity + charge, 0.f, 1.f);
+}
 
 
 //-------------------------------------------------------------------------------------
@@ -287,7 +329,6 @@ float EngineRacer::GetDifferentialAngularVelocity(bool locked)
 
 //-------------------------------------------------------------------------------------
 // MATCHING
-// <@>PRINT_ASM
 float EngineRacer::GetDriveWheelSlippage()
 {
 	float retval = 0.f;
@@ -303,7 +344,7 @@ float EngineRacer::GetDriveWheelSlippage()
 		retval += mSuspension->GetWheelSlip(TIRE_FR) + mSuspension->GetWheelSlip(TIRE_FL);
 	}
 
-	return retval / (float)drivewheels;;
+	return retval / drivewheels;
 }
 
 
@@ -313,7 +354,7 @@ void EngineRacer::SetDifferentialAngularVelocity(float w)
 {
 	float current = GetDifferentialAngularVelocity(0);
 	float diff = w - current;
-	IVehicle* vehicle = mVehicle;
+	IVehicle* vehicle = GetVehicle();
 	float speed = MPS2MPH(vehicle->GetAbsoluteSpeed());
 	int lockdiff = speed < 40.f;
 	if (RearWheelDrive())
@@ -351,7 +392,7 @@ void EngineRacer::SetDifferentialAngularVelocity(float w)
 // MATCHING
 float EngineRacer::CalcSpeedometer(float rpm, uint32_t gear)
 {
-	Physics::Tunings* tunings = mVehicle->GetTunings();
+	Physics::Tunings* tunings = GetVehicle()->GetTunings();
 	return Physics::Info::Speedometer(
 		   mTrannyInfo, 
 		   mEngineInfo, 
@@ -371,7 +412,7 @@ float EngineRacer::GetMaxSpeedometer()
 	{
 		float limiter = MPH2MPS(mEngineInfo.SPEED_LIMITER(0));
 		float rpm_max = mEngineInfo.RED_LINE();
-		Physics::Tunings* tunings = mVehicle->GetTunings();
+		Physics::Tunings* tunings = GetVehicle()->GetTunings();
 		float max_speedometer = Physics::Info::Speedometer(
 								mTrannyInfo, 
 								mEngineInfo, 
@@ -487,4 +528,206 @@ void EngineRacer::DoECU()
 			}
 		}
 	}
+}
+
+
+bool Tweak_InfiniteNOS = false;
+//-------------------------------------------------------------------------------------
+float EngineRacer::DoNos(const Physics::Tunings* tunings, float dT, bool engaged)
+{
+	if (!HasNOS())  return 1.f;
+
+	float speed_mph = MPS2MPH(GetVehicle()->GetAbsoluteSpeed());
+	float recharge_rate = 0.f;
+	IPlayer* player = GetOwner()->GetPlayer();
+
+	if  (!player || player->CanRechargeNOS())
+	{
+		float min_speed = mNOSInfo.RECHARGE_MIN_SPEED();
+		float max_speed = mNOSInfo.RECHARGE_MAX_SPEED();
+		if (speed_mph >= min_speed && mGear >= G_FIRST)
+		{
+			float t = UMath::Ramp(speed_mph, min_speed, max_speed);
+			recharge_rate = UMath::Lerp(mNOSInfo.RECHARGE_MIN(), mNOSInfo.RECHARGE_MAX(), t);
+		}
+	}
+
+	if (mGear < G_FIRST || mThrottle <= 0.f || IsBlown())
+		engaged = false;
+	if (speed_mph < 10.f && !IsNOSEngaged() || speed_mph < 5.f && IsNOSEngaged())
+		engaged = false;
+
+	float nos_discharge = Physics::Info::NosCapacity(mNOSInfo, tunings);
+	float nos_torque_scale = 1.f;
+	if (nos_discharge > 0.f)
+	{
+		float nos_disengage = mNOSInfo.NOS_DISENGAGE();
+		if (engaged && mNOSCapacity > 0.f)
+		{
+			float discharge = dT / nos_discharge;
+			// don't deplete nitrous
+			if (Tweak_InfiniteNOS || GetVehicle()->GetDriverClass() == DRIVER_REMOTE)
+				discharge = 0.f;
+			// GetCatchupCheat returns 0.0 for human racers, but AI racers get hax
+			if (mCheater)
+				discharge *= UMath::Lerp(1.f, 0.5f, mCheater->GetCatchupCheat());
+			mNOSCapacity -= discharge;
+			nos_torque_scale = Physics::Info::NosBoost(mNOSInfo, tunings);
+			mNOSEngaged = 1.f;
+			// mNOSCapacity = UMath::Max(mNOSCapacity - discharge, 0.f);
+			mNOSCapacity = UMath::Max(mNOSCapacity, 0.f);
+		}
+		else if (mNOSEngaged > 0.f && nos_disengage > 0.f)
+		{
+			// nitrous can't start recharging until the disengage timer runs out
+			// it takes [NOS_DISENGAGE] seconds for it to reach zero
+
+			mNOSEngaged -= dT / nos_disengage;
+			mNOSEngaged = UMath::Max(mNOSEngaged, 0.f);
+		}
+		else
+		{
+			if (mNOSCapacity < 1.f && recharge_rate > 0.f)
+			{
+				float recharge = dT / recharge_rate;
+				// GetCatchupCheat returns 0.0 for human racers, but AI racers get hax
+				if (mCheater)
+					recharge *= UMath::Lerp(1.f, 2.f, mCheater->GetCatchupCheat());
+				mNOSCapacity = UMath::Min(recharge + mNOSCapacity, 1.f);
+			}
+			mNOSEngaged = 0.f;
+		}
+		
+	}
+	else
+	{
+		// fallback in case someone sets the nitrous capacity <= 0.0 by uncapping tuning limits
+
+		mNOSCapacity = 0.f;
+		mNOSEngaged = 0.f;
+	}
+	return nos_torque_scale;
+}
+
+
+//-------------------------------------------------------------------------------------
+// MATCHING
+void EngineRacer::DoInduction(const Physics::Tunings* tunings, float dT)
+{
+	eInductionType type = Physics::Info::InductionType(mInductionInfo);
+	if (type == INDUCTION_NONE)
+	{
+		mSpool = 0.f;
+		mInductionBoost = 0.f;
+		mPSI = 0.f;
+		return;
+	}
+
+	float desired_spool = UMath::Ramp(mThrottle, 0.f, 0.5f);
+	float rpm = RPS2RPM(mAngularVelocity);
+
+	if (IsGearChanging())
+		desired_spool = 0.f;
+	// turbocharger can't start spooling up until the engine rpm is >= the boost threshold
+	if (type == INDUCTION_TURBO_CHARGER
+	&& Physics::Info::InductionRPM(mEngineInfo, mInductionInfo, tunings) > rpm)
+		desired_spool = 0.f;
+	
+	if (mSpool > desired_spool)
+	{
+		float spool_time = mInductionInfo.SPOOL_TIME_DOWN();
+		if (spool_time > FLT_EPSILON)
+		{
+			mSpool -= dT / spool_time;
+			mSpool = UMath::Max(mSpool, desired_spool);
+		}
+		else
+		{
+			mSpool = desired_spool;
+		}
+	}
+	else if (mSpool < desired_spool)
+	{
+		float spool_time = mInductionInfo.SPOOL_TIME_UP();
+		if (spool_time > FLT_EPSILON)
+		{
+			mSpool += dT / spool_time;
+			mSpool = UMath::Min(mSpool, desired_spool);
+		}
+		else
+		{
+			mSpool = desired_spool;
+		}
+	}
+
+	float target_psi;
+	mSpool = UMath::Clamp_(mSpool, 0.f, 1.f);
+	mInductionBoost = Physics::Info::InductionBoost(mEngineInfo, mInductionInfo, rpm, mSpool, tunings, &target_psi);
+	if (mPSI > target_psi)
+		mPSI = UMath::Max(mPSI - dT * 20.f, target_psi);
+	else if (mPSI < target_psi)
+		mPSI = UMath::Min(mPSI + dT * 20.f, target_psi);
+}
+
+
+//-------------------------------------------------------------------------------------
+// MATCHING
+float EngineRacer::DoThrottle()
+{
+	if (!IsBlown())
+	{
+		if (!mIInput)  return 0.f;
+		else  return mIInput->GetControls().fGas;
+	}
+	else
+	{
+		// cut the throttle when the engine is blown
+		return 0.f;
+	}
+}
+
+
+//-------------------------------------------------------------------------------------
+// MATCHING
+float EngineRacer::GetShiftPoint(GearID from_gear, GearID to_gear)
+{
+	if (from_gear < G_NEUTRAL || to_gear <= G_NEUTRAL)
+		return 0.f;
+	if (to_gear > from_gear)
+		return mShiftUpRPM[from_gear];
+	if (to_gear >= from_gear)
+		return 0.f;
+	else
+		return mShiftDownRPM[from_gear];
+}
+
+
+//-------------------------------------------------------------------------------------
+// MATCHING
+// <@>PRINT_ASM
+bool EngineRacer::DoGearChange(GearID gear, bool automatic)
+{
+	// can't shift past top gear
+	if (gear > GetTopGear())  return false;
+	// can't shift below reverse gear
+	if (gear < G_REVERSE)  return false;
+
+	GearID previous = mGear;
+	ShiftStatus status = OnGearChange(gear);
+	// has shifted
+	if (status != SHIFT_STATUS_NONE)
+	{
+		mShiftStatus = status;
+		mShiftPotential = SHIFT_POTENTIAL_NONE;
+		ISimable* owner = GetOwner();
+		// AI shifted
+		if (!owner->IsPlayer())  return true;
+
+		// dispatch shift event
+		new EPlayerShift(owner->GetInstanceHandle(), status, automatic, previous, gear);
+		// player shifted
+		return true;
+	}
+	// didn't shift
+	return false;	
 }

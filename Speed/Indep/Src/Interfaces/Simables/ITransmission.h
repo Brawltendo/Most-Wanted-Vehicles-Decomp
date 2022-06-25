@@ -1,10 +1,10 @@
 #pragma once
-//#include "speedcommon.h"
+#include "speedcommon.h"
 #include "physics/physicstypes.h"
 #include "Speed/Indep/Libs/Support/Utility/UCOM.h"
 
 
-class ITransmission : public UTL::COM::IUnknown
+SPEED_INTERFACE ITransmission : public UTL::COM::IUnknown
 {
 public:
     virtual GearID GetGear();

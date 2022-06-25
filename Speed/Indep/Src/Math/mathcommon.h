@@ -153,6 +153,13 @@ float Clamp(const float a, const float amin, const float amax)
 }
 
 // MATCHING
+// Linearly interpolates between a and b by the interpolant t
+float Lerp(const float a, const float b, const float t)
+{
+	return (t * (b - a)) + a;
+}
+
+// MATCHING
 // Returns the interpolant (clamped to [0-1]) for the input value given a min/max range
 float Ramp(const float a, const float amin, const float amax)
 {
@@ -161,7 +168,7 @@ float Ramp(const float a, const float amin, const float amax)
 	// it also needs to be above zero in order to output a value between 0 and 1
 	if ((arange > FLT_EPSILON))
 		// clamp to 0-1 range
-		return Max(0.f, Min((a - amax) / arange, 1.f));
+		return Max(0.f, Min((a - amin) / arange, 1.f));
 	else
 		return 0.f;
 }

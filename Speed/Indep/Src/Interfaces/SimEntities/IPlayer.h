@@ -1,7 +1,8 @@
 #pragma once
-//#include "speedcommon.h"
+#include "speedcommon.h"
 #include "math/matrix.h"
 #include "math/vector.h"
+#include "Speed/Indep/Libs/Support/Utility/UCOM.h"
 
 
 enum eControllerConfig
@@ -44,10 +45,9 @@ struct PlayerSettings
 	uint8_t Handling;
 };
 
-class IPlayer
+SPEED_INTERFACE IPlayer : public UTL::COM::IUnknown
 {
 public:
-	virtual void _PADDING();
     virtual void* GetSimable();
     virtual bool IsLocal();
     virtual UMath::Vector3& GetPosition();

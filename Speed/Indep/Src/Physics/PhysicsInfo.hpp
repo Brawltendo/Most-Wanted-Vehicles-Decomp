@@ -2,6 +2,7 @@
 #include "generated/attribsys/classes/chassis.h"
 #include "generated/attribsys/classes/engine.h"
 #include "generated/attribsys/classes/induction.h"
+#include "generated/attribsys/classes/nos.h"
 #include "generated/attribsys/classes/tires.h"
 #include "generated/attribsys/classes/transmission.h"
 
@@ -19,7 +20,10 @@ namespace Info
 	float AerodynamicDownforce(const Attrib::Gen::chassis& chassis, const float speed);
 	float EngineInertia(const Attrib::Gen::engine& engine, const bool loaded);
 	eInductionType InductionType(const Attrib::Gen::induction& induction);
-	float InductionRPM(const Attrib::Gen::engine& engine, const Attrib::Gen::induction& induction, const Tunings& tunings);
+	float NosBoost(const Attrib::Gen::nos& nos, const Tunings* tunings);
+	float NosCapacity(const Attrib::Gen::nos& nos, const Tunings* tunings);
+	float InductionRPM(const Attrib::Gen::engine& engine, const Attrib::Gen::induction& induction, const Tunings* tunings);
+	float InductionBoost(const Attrib::Gen::engine& engine, const Attrib::Gen::induction& induction, float rpm, float spool, const Tunings* tunings, float* psi);
 	float WheelDiameter(const Attrib::Gen::tires& tires, bool front);
 	float Speedometer(const Attrib::Gen::transmission& transmission, const Attrib::Gen::engine& engine, const Attrib::Gen::tires& tires, float rpm, GearID gear, const Tunings* tunings);
 	float Torque(const Attrib::Gen::engine& engine, const float atRPM);

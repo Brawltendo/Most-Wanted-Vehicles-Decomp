@@ -11,6 +11,7 @@ namespace Attrib
     
 struct Instance
 {
+	void* GetLayoutPointer() const { return mLayoutPtr; }
 	void* GetLayoutPointer() { return mLayoutPtr; }
 	void* GetAttributePointer(uint32_t attribkey, uint32_t index);
 	

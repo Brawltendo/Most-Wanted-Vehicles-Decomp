@@ -6,6 +6,13 @@
 class Behavior : public Sim::Object, public UTL::COM::Factory
 {
 public:
+	UCrc32& GetMechanic() { return mMechanic; }
+	UCrc32& GetSignature() { return mSignature; }
+	bool IsPaused() { return mPaused; }
+	class ISimable* GetOwner() { return mIOwner; }
+	const int GetPriority() { return mPriority; }
+
+private:
 	bool mPaused;
 	void* mOwner;
 	class ISimable* mIOwner;

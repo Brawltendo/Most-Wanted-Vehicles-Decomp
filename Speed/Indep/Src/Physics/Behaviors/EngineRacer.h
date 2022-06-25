@@ -17,6 +17,9 @@
 
 #include "Physics/PhysicsTypes.h"
 
+namespace Physics { struct Tunings; } // namespace Physics
+
+
 class EngineRacer : protected VehicleBehavior, 
 					protected ITransmission, 
 					protected IEngine, 
@@ -32,11 +35,10 @@ public:
 	virtual ShiftStatus OnGearChange(GearID gear);
 	virtual bool UseRevLimiter();
 	virtual void DoECU();
-	float CalcSpeedometer(float rpm, uint32_t gear);
-	float GetMaxSpeedometer();
-	float GetSpeedometer();
+	virtual float DoThrottle();
+	virtual void DoInduction(const Physics::Tunings* tunings, float dT);
+	virtual float DoNos(const Physics::Tunings* tunings, float dT, bool engaged);
 
-	float GetBrakingTorque(float engine_torque, float rpm);
 	uint32_t GetNumGearRatios();
 	float GetGearRatio(uint32_t idx);
 	float GetGearEfficiency(uint32_t idx);
@@ -48,7 +50,25 @@ public:
 	float GetDifferentialAngularVelocity(bool locked);
 	float GetDriveWheelSlippage();
 	void SetDifferentialAngularVelocity(float w);
+	float CalcSpeedometer(float rpm, uint32_t gear);
 	void LimitFreeWheels(float w);
+	float GetBrakingTorque(float engine_torque, float rpm);
+	bool DoGearChange(GearID gear, bool automatic);
+	
+
+	// ITransmission
+	
+	float GetSpeedometer();
+	float GetMaxSpeedometer();
+	float GetShiftPoint(GearID from_gear, GearID to_gear);
+
+
+	// IEngine
+
+	bool IsNOSEngaged();
+	float GetNOSFlowRate();
+	bool HasNOS();
+	void ChargeNOS(float charge);	
 
 private:
 	float mDriveTorque;
@@ -69,12 +89,9 @@ private:
 	float mClutchRPMDiff;
 	bool mEngineBraking;
 	float mSportShifting;
-	/* struct IInput* mIInput;
+	struct IInput* mIInput;
 	struct ISuspension* mSuspension;
-	struct ICheater* mCheater; */
-	int mIInput;
-	struct ISuspension* mSuspension;
-	int mCheater;
+	struct ICheater* mCheater;
 	Attrib::Gen::nos mNOSInfo;
 	Attrib::Gen::induction mInductionInfo;
 	Attrib::Gen::engine mEngineInfo;

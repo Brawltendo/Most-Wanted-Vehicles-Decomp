@@ -56,10 +56,7 @@ Table* LoadSensitivityTable[] =
 {
 	&ZeroDegree, &TwoDegree, &FourDegree, &SixDegree, &EightDegree, &TenDegree, &TwelveDegree
 };
-// I have no idea why this exists or why ComputeLateralForce even uses it
-// LatForceMultipliers[2] is also changed to 1 somewhere at runtime
-// I don't even wanna begin to know what kinda code caused MSVC to spit that shit out
-// no other platform has this, it's literally just a Windows thing
+// Mystery solved, this and some other physics params are set at runtime by the game's DRM. Thanks for the info rx!
 int* pLatForceMultipliers = NULL;
 float SuspensionRacer::Tire::ComputeLateralForce(float load, float slip_angle)
 {
@@ -210,12 +207,10 @@ float SuspensionRacer::DoHumanSteering(Chassis::State& state)
 	float steering_coeff = mTireInfo.STEERING();
 	ISteeringWheel::SteeringType steer_type = ISteeringWheel::SteeringType::kGamePad;
 
-	// LocalPlayer::IPlayer* PhysicsObject::GetPlayer()
-	int* player = (*(int* (**)())((*(int*)mOwner) + 0x20))();
+	IPlayer* player = GetOwner()->GetPlayer();
 	if (player)
 	{
-		// SteeringWheelDevice* LocalPlayer::GetSteeringDevice()
-		int* steering_device = (*(int* (__fastcall **)(int*))((*player) + 0x3C))(player);
+		int* steering_device = reinterpret_cast<int*>(player->GetSteeringDevice());
 
 		if (steering_device)
 		{
@@ -312,7 +307,7 @@ float SuspensionRacer::CalculateMaxSteering(Chassis::State& state, ISteeringWhee
 	max_steering *= SteeringSpeedTable.GetValue(state.local_vel.z) * BrakeSteeringRangeMultiplier * tbcoeff + 1.f;
 	max_steering *= SteeringRangeCoeffTable.GetValue(fabsf(mSteering.InputAverage.GetValue()));
 
-	const Physics::Tunings* tunings = mVehicle->GetTunings();
+	const Physics::Tunings* tunings = GetVehicle()->GetTunings();
 	// steering tuning allows for up to a 20% increase or decrease to the max steering range
 	if (tunings)
 		max_steering *= tunings->steeringTuning * 0.2f + 1.f;
@@ -942,10 +937,7 @@ void SuspensionRacer::DoDrifting(const Chassis::State& state)
 		&& state.speed > MPH2MPS(35.000058f) 
 		&& UMath::Abs(slipangle_radians) > DEG2RAD(30.f))//0.52358997f)
 		{
-			// ugly ass casting because I don't wanna deal with this class's inheritance and virtual functions right now
-			// you get the point anyway
-
-			IPlayer* player = mIOwner->GetPlayer();
+			IPlayer* player = GetOwner()->GetPlayer();
 			if (player)
 			{
 				float charge = mDrift.Value * state.time * 0.5f;
@@ -1011,7 +1003,7 @@ void SuspensionRacer::TuneWheelParams(Chassis::State& state)
 
 	float brake_biased[2] = { state.brake_input, state.brake_input };
 	yawcontrol *= (1.f - mDrift.Value); // pointless parentheses for matching purposes
-	const Physics::Tunings* tunings = mVehicle->GetTunings();
+	const Physics::Tunings* tunings = GetVehicle()->GetTunings();
 	if (tunings)
 	{
 		// brake tuning adjusts the brake bias
@@ -1019,7 +1011,7 @@ void SuspensionRacer::TuneWheelParams(Chassis::State& state)
 		brake_biased[1] -= brake_biased[1] * tunings->brakesTuning * 0.5f;
 	}
 	float suspension_yaw_control_limit = CalcYawControlLimit(state.speed);
-	IPlayer* player = mIOwner->GetPlayer();
+	IPlayer* player = GetOwner()->GetPlayer();
 	if (state.driver_style == STYLE_DRAG)
 		suspension_yaw_control_limit = 0.1f;
 	else if (player)
@@ -1141,7 +1133,7 @@ void SuspensionRacer::DoWheelForces(Chassis::State& state)
 	const float mass = state.mass;
 	float ride_extra = 0.f;
 
-	const Physics::Tunings* tunings = mVehicle->GetTunings();
+	const Physics::Tunings* tunings = GetVehicle()->GetTunings();
 	if (tunings)
 		ride_extra = tunings->rideHeightTuning;
 	
