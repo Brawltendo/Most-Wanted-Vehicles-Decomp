@@ -8,7 +8,7 @@ namespace Sim
 SPEED_INTERFACE ITaskable : public UTL::COM::IUnknown
 {
 public:
-	//virtual void _PADDING();
+	virtual ~ITaskable();
     //virtual bool OnTask(float);
 };
 

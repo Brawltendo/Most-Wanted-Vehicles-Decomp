@@ -6,6 +6,7 @@
 class Behavior : public Sim::Object, public UTL::COM::Factory
 {
 public:
+	virtual ~Behavior();
 	UCrc32& GetMechanic() { return mMechanic; }
 	UCrc32& GetSignature() { return mSignature; }
 	bool IsPaused() { return mPaused; }

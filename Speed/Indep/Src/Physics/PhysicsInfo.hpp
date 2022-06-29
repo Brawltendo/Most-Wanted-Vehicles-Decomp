@@ -26,7 +26,8 @@ namespace Info
 	float InductionBoost(const Attrib::Gen::engine& engine, const Attrib::Gen::induction& induction, float rpm, float spool, const Tunings* tunings, float* psi);
 	float WheelDiameter(const Attrib::Gen::tires& tires, bool front);
 	float Speedometer(const Attrib::Gen::transmission& transmission, const Attrib::Gen::engine& engine, const Attrib::Gen::tires& tires, float rpm, GearID gear, const Tunings* tunings);
-	float Torque(const Attrib::Gen::engine& engine, const float atRPM);
+	float Torque(const Attrib::Gen::engine& engine, float rpm);
+	bool ShiftPoints(const Attrib::Gen::transmission& transmission, const Attrib::Gen::engine& engine, const Attrib::Gen::induction& induction, float* shift_up, float* shift_down, uint32_t numpts);
 
 	struct Performance
 	{

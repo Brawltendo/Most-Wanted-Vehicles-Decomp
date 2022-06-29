@@ -7,7 +7,7 @@
 SPEED_INTERFACE IInductable : public UTL::COM::IUnknown
 {
 public:
-	virtual void _PADDING();
+	virtual ~IInductable();
     virtual eInductionType InductionType();
     virtual float InductionSpool();
     virtual float GetInductionPSI();

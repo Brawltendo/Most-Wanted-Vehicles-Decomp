@@ -86,7 +86,6 @@ float Physics::Info::InductionRPM(const Attrib::Gen::engine& engine, const Attri
 
 //-------------------------------------------------------------------------------------
 // EXTREMELY stubborn function to byte match, still functionally matches
-// <@>PRINT_ASM
 float Physics::Info::InductionBoost(const Attrib::Gen::engine& engine, const Attrib::Gen::induction& induction, float rpm, float spool, const Tunings* tunings, float* psi)
 {
 	if (psi)  *psi = 0.f;
@@ -174,9 +173,92 @@ float Physics::Info::Speedometer(const Attrib::Gen::transmission& transmission, 
 
 
 //-------------------------------------------------------------------------------------
-float Physics::Info::Torque(const Attrib::Gen::engine& engine, const float atRPM)
+// MATCHING
+float Physics::Info::Torque(const Attrib::Gen::engine& engine, float rpm)
 {
+	float rpm_min = engine.IDLE();
+	float rpm_max = engine.MAX_RPM();
+	rpm = UMath::Clamp_(rpm, engine.IDLE(), engine.RED_LINE());
+	uint32_t numpts = engine.Num_TORQUE();
+	if (numpts > 1)
+	{
+		float ratio;
+		uint32_t index = UMath::InterpolateIndex(numpts - 1, rpm, rpm_min, rpm_max, ratio);
+		float torque = engine.TORQUE(index);
+		uint32_t secondIndex = UMath::Min(index + 1, numpts - 1);
+		return UMath::Lerp(torque, engine.TORQUE(secondIndex), ratio);
+	}
+
 	return 0.f;
+}
+
+
+//-------------------------------------------------------------------------------------
+// MATCHING
+// <@>PRINT_ASM
+bool Physics::Info::ShiftPoints(const Attrib::Gen::transmission& transmission, const Attrib::Gen::engine& engine, const Attrib::Gen::induction& induction, float* shift_up, float* shift_down, uint32_t numpts)
+{
+	for (int i = 0; i < numpts; ++i)
+	{
+		shift_up[i]   = 0.f;
+		shift_down[i] = 0.f;
+	}
+
+	uint32_t num_gear_ratios = transmission.Num_GEAR_RATIO();
+	if (numpts < num_gear_ratios)  return false;
+
+	float redline = engine.RED_LINE();
+	int   topgear = num_gear_ratios - 1;
+	for (int j = G_FIRST; j < topgear; ++j)
+	{
+		float g1   = transmission.GEAR_RATIO(j);
+		float g2   = transmission.GEAR_RATIO(j + 1);
+		float rpm  = (redline + engine.IDLE()) * 0.5f;
+		float max  = rpm;
+		int   flag = 0;
+
+		if (rpm < redline)
+		{
+			// find the upshift RPM for this gear using predicted engine torque
+			while (!flag)
+			{
+				// seems like the rpm and spool params are swapped in both instances
+				// so either it's a mistake that was copy-pasted or it was a deliberate choice
+				float currenttorque = Torque(engine, max) * (InductionBoost(engine, induction, 1.f, max, NULL, NULL) + 1.f);
+				float shiftuptorque;
+				if (UMath::Abs(g1) > 0.00001f)
+				{
+					float ratio = g2 / g1;
+					float next_rpm = ratio * max;
+					shiftuptorque = Torque(engine, next_rpm) * (InductionBoost(engine, induction, 1.f, next_rpm, NULL, NULL) + 1.f) * g2 / g1;
+				}
+				else
+				{
+					shiftuptorque = 0.f;
+				}
+
+				// set the upshift RPM to the current max
+				if (shiftuptorque > currenttorque)  break;
+
+				max += 50.f;
+				// set the upshift RPM to the redline RPM
+				flag = !(max < redline);
+			}
+			if (!flag)  shift_up[j] = max;
+		}
+		else
+		{
+			flag = 1;
+		}
+		if (flag)  shift_up[j] = redline - 100.f;
+
+		// calculate downshift RPM for the next gear
+		if (UMath::Abs(g1) > 0.00001f)  shift_down[j+1] = (g2 / g1) * shift_up[j];
+		else  shift_down[j+1] = 0.f;
+	}
+
+	shift_up[topgear] = engine.RED_LINE();
+	return true;
 }
 
 

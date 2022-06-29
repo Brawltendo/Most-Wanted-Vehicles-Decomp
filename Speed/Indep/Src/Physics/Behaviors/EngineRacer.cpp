@@ -249,6 +249,33 @@ bool EngineRacer::FrontWheelDrive()
 
 //-------------------------------------------------------------------------------------
 // MATCHING
+ShiftPotential EngineRacer::FindShiftPotential(GearID gear, float rpm)
+{
+	if (gear <= G_NEUTRAL)  return SHIFT_POTENTIAL_NONE;
+
+	float shift_up_rpm = mShiftUpRPM[gear];
+	float shift_down_rpm = mShiftDownRPM[gear];
+	float lower_gear_ratio = mTrannyInfo.GEAR_RATIO(gear - 1);
+
+	// is able to shift down
+	if (gear != G_FIRST && lower_gear_ratio > 0.f)
+	{
+		float lower_gear_shift_up_rpm = mShiftUpRPM[gear - 1];
+		lower_gear_shift_up_rpm = GetGearRatio(gear) * (lower_gear_shift_up_rpm / lower_gear_ratio) - 200.f;
+		// the RPM to shift down is lowered when the throttle isn't pressed
+		float off_throttle_rpm = UMath::Min(UMath::Lerp(UMath::Lerp(mEngineInfo.IDLE(), shift_down_rpm, 0.65f), shift_down_rpm, mThrottle), lower_gear_shift_up_rpm); 
+		shift_down_rpm = off_throttle_rpm;
+	}
+
+	// shifting up
+	if (rpm >= shift_up_rpm && gear < GetTopGear()) return SHIFT_POTENTIAL_UP;
+	// shifting down or not shifting at all
+	else return static_cast<ShiftPotential>(rpm <= shift_down_rpm && gear > G_FIRST);
+}
+
+
+//-------------------------------------------------------------------------------------
+// MATCHING
 ShiftStatus EngineRacer::OnGearChange(GearID gear)
 {
 	if (gear >= mTrannyInfo.Num_GEAR_RATIO())
@@ -705,6 +732,25 @@ float EngineRacer::GetShiftPoint(GearID from_gear, GearID to_gear)
 //-------------------------------------------------------------------------------------
 // MATCHING
 // <@>PRINT_ASM
+float EngineRacer::GetPerfectLaunchRange(float& range)
+{
+	// perfect launch only applies to first gear
+	if (mGear != G_FIRST)
+	{
+		range = 0.f;
+		return 0.f;
+	}
+	else
+	{
+		range = (mEngineInfo.RED_LINE() - mEngineInfo.IDLE()) * 0.25f;
+		float upper_limit = mEngineInfo.RED_LINE() - 500.f;
+		return UMath::Min(range + mPeakTorqueRPM, upper_limit) - range;
+	}
+}
+
+
+//-------------------------------------------------------------------------------------
+// MATCHING
 bool EngineRacer::DoGearChange(GearID gear, bool automatic)
 {
 	// can't shift past top gear
@@ -729,5 +775,95 @@ bool EngineRacer::DoGearChange(GearID gear, bool automatic)
 		return true;
 	}
 	// didn't shift
-	return false;	
+	return false;
+}
+
+
+//-------------------------------------------------------------------------------------
+// MATCHING
+bool EngineRacer::Shift(GearID gear)
+{
+	return DoGearChange(gear, false);
+}
+
+
+//-------------------------------------------------------------------------------------
+// MATCHING
+void EngineRacer::AutoShift()
+{
+	if (mGear == G_REVERSE 
+	|| mGearShiftTimer > 0.f 
+	|| GetVehicle()->IsStaging() 
+	|| mSportShifting > 0.f)
+		return;
+
+	// skip neutral when using auto transmission
+	if (mGear == G_NEUTRAL)
+	{
+		mGear = G_FIRST;
+		return;
+	}
+
+	switch (mShiftPotential)
+	{
+		case SHIFT_POTENTIAL_DOWN:
+		{
+			int next_gear = mGear - 1;
+			if (next_gear > G_FIRST)
+			{
+				float current_rpm = RPS2RPM(mTransmissionVelocity);
+				float rpm = GetRatioChange(next_gear, mGear) * current_rpm;
+				do
+				{
+					if (FindShiftPotential((GearID)next_gear, rpm) != SHIFT_POTENTIAL_DOWN)  break;
+					rpm = GetRatioChange(--next_gear, mGear) * current_rpm;
+				} while (next_gear > G_FIRST);
+			}
+			DoGearChange((GearID)next_gear, true);
+			break;
+		}
+
+		case SHIFT_POTENTIAL_UP:
+		case SHIFT_POTENTIAL_PERFECT:
+		case SHIFT_POTENTIAL_MISS:
+		{
+			int have_traction = 1;
+			for (int i = 0; i < 4; ++i)
+			{
+				have_traction &= mSuspension->IsWheelOnGround(i) && mSuspension->GetWheelSlip(i) < 4.f;
+			}
+			if (have_traction)  DoGearChange((GearID)(mGear + 1), true);
+			break;
+		}
+		
+		default:
+			return;
+	}
+}
+
+
+//-------------------------------------------------------------------------------------
+// MATCHING
+void EngineRacer::DoShifting(float dT)
+{
+	if (mIInput && mIInput->IsAutomaticShift())  AutoShift();
+
+	if (mGearShiftTimer > 0.f)
+	{
+		mGearShiftTimer -= dT;
+		if (mGearShiftTimer <= 0.f)  mGearShiftTimer = 0.f;
+	}
+
+	if (mSportShifting > 0.f && mShiftPotential)
+	{
+		if (mIInput)
+		{
+			float gas = mIInput->GetControls().fGas;
+			mSportShifting = UMath::Max(mSportShifting - (2.f - gas) * dT, 0.f);
+		}
+		else
+		{
+			mSportShifting = 0.f;
+		}
+	}
 }

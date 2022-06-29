@@ -7,5 +7,6 @@
 SPEED_INTERFACE ITiptronic : public UTL::COM::IUnknown
 {
 public:
+	virtual ~ITiptronic();
     virtual bool SportShift();
 };

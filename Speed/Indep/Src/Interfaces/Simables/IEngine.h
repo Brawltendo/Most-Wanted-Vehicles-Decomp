@@ -7,6 +7,7 @@
 SPEED_INTERFACE IEngine : public UTL::COM::IUnknown
 {
 public:
+	virtual ~IEngine();
     virtual float GetRPM();
     virtual float GetRedline();
     virtual float GetMaxRPM();
@@ -27,5 +28,6 @@ public:
 SPEED_INTERFACE IRaceEngine : public UTL::COM::IUnknown
 {
 public:
+	virtual ~IRaceEngine();
     virtual float GetPerfectLaunchRange(float& range);
 };

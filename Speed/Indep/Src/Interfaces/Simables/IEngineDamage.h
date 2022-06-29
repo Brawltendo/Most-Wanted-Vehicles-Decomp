@@ -7,6 +7,7 @@
 SPEED_INTERFACE IEngineDamage : public UTL::COM::IUnknown
 {
 public:
+	virtual ~IEngineDamage();
     virtual bool IsBlown();
     virtual void Blow();
     virtual void Sabotage(float time);

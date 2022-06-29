@@ -9,6 +9,9 @@ namespace Sim
 	
 class Object : public UTL::COM::Object, public IServiceable, public ITaskable
 {
+public:
+	virtual ~Object();
+private:
 	uint32_t mTaskCount;
 	uint32_t mServiceCount;
 };

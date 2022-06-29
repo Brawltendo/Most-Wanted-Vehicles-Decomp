@@ -7,6 +7,7 @@
 SPEED_INTERFACE ITransmission : public UTL::COM::IUnknown
 {
 public:
+	virtual ~ITransmission();
     virtual GearID GetGear();
     virtual GearID GetTopGear();
     virtual bool Shift(GearID to_gear);

@@ -8,7 +8,7 @@ namespace UTL { namespace COM {
 SPEED_INTERFACE IUnknown
 {
 public:
-	virtual void dummy() = 0;
+		virtual ~IUnknown();
 
 private:
 	class Object* _mCOMObject;

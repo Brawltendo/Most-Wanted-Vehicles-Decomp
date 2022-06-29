@@ -30,6 +30,16 @@ class EngineRacer : protected VehicleBehavior,
 					public IEngineDamage
 {
 public:
+	virtual ~EngineRacer();
+	virtual void OnService();
+	virtual void Reset();
+	virtual void GetPriority();
+	virtual void OnOwnerAttached();
+	virtual void OnOwnerDetached();
+	virtual void OnTaskSimulate(float dT);
+	virtual void OnBehaviorChange(const struct UCrc32&);
+	virtual void OnPause();
+	virtual void OnUnPause();
 	virtual bool IsEngineBraking();
 	virtual bool IsShiftingGear();
 	virtual ShiftStatus OnGearChange(GearID gear);
@@ -38,6 +48,7 @@ public:
 	virtual float DoThrottle();
 	virtual void DoInduction(const Physics::Tunings* tunings, float dT);
 	virtual float DoNos(const Physics::Tunings* tunings, float dT, bool engaged);
+	virtual void DoShifting(float dT);
 
 	uint32_t GetNumGearRatios();
 	float GetGearRatio(uint32_t idx);
@@ -47,6 +58,7 @@ public:
 	float GetShiftDelay(uint32_t gear);
 	bool RearWheelDrive();
 	bool FrontWheelDrive();
+	ShiftPotential FindShiftPotential(GearID gear, float rpm);
 	float GetDifferentialAngularVelocity(bool locked);
 	float GetDriveWheelSlippage();
 	void SetDifferentialAngularVelocity(float w);
@@ -54,10 +66,12 @@ public:
 	void LimitFreeWheels(float w);
 	float GetBrakingTorque(float engine_torque, float rpm);
 	bool DoGearChange(GearID gear, bool automatic);
+	void AutoShift();
 	
 
 	// ITransmission
 	
+	bool Shift(GearID gear);
 	float GetSpeedometer();
 	float GetMaxSpeedometer();
 	float GetShiftPoint(GearID from_gear, GearID to_gear);
@@ -68,7 +82,11 @@ public:
 	bool IsNOSEngaged();
 	float GetNOSFlowRate();
 	bool HasNOS();
-	void ChargeNOS(float charge);	
+	void ChargeNOS(float charge);
+
+	// IRaceEngine
+
+	float GetPerfectLaunchRange(float& range);
 
 private:
 	float mDriveTorque;
